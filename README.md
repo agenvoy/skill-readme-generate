@@ -19,7 +19,6 @@
 ## Table of Contents
 
 - [Features](#features)
-- [Built With](#built-with)
 - [Architecture](#architecture)
 - [License](#license)
 
@@ -32,12 +31,6 @@
 - **Three Orthogonal Parameters** — `private`, `LICENSE_TYPE`, and `REPO_PATH` compose freely in any order, defaulting to MIT when no license is specified.
 - **Persistent Author Config** — `setup_config.py` maintains author, email, and GitHub identity in `~/.skill-readme-generate.json`, prompted once interactively then reused across runs.
 - **Seven Built-In License Templates** — MIT, Apache-2.0, GPL-3.0, BSD-3-Clause, ISC, Unlicense, and Proprietary templates are embedded, with Proprietary implying private mode.
-
-## Built With
-
-<a href="https://skillicons.dev">
-  <img src="https://skillicons.dev/icons?i=py,md,bash,git,github&theme=light" />
-</a>
 
 ## Architecture
 

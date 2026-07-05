@@ -19,7 +19,6 @@
 ## 目錄
 
 - [功能特點](#功能特點)
-- [技術堆疊](#技術堆疊)
 - [架構](#架構)
 - [授權](#授權)
 
@@ -32,12 +31,6 @@
 - **三個正交參數** — `private`、`LICENSE_TYPE`、`REPO_PATH` 順序無關且可自由組合，未指定授權時預設生成 MIT。
 - **持久化作者設定** — `setup_config.py` 於 `~/.skill-readme-generate.json` 維護作者 / Email / GitHub，首次互動建立後無需重複輸入。
 - **七種內嵌授權範本** — MIT、Apache-2.0、GPL-3.0、BSD-3-Clause、ISC、Unlicense、Proprietary 範本全內建，Proprietary 自動隱含私有模式。
-
-## 技術堆疊
-
-<a href="https://skillicons.dev">
-  <img src="https://skillicons.dev/icons?i=py,md,bash,git,github&theme=light" />
-</a>
 
 ## 架構
 
