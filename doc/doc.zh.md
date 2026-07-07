@@ -119,7 +119,7 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py write \
 /readme-generate private
 ```
 
-隱藏徽章與星標歷史，僅保留標語與內容，適合公司內部專案。
+隱藏徽章，僅保留標語與內容，適合公司內部專案。
 
 ### 覆蓋儲存庫路徑
 
@@ -151,7 +151,7 @@ python3 ~/.claude/skills/readme-generate/scripts/analyze_project.py /path/to/pro
 
 | 參數 | 格式 | 說明 |
 |------|------|------|
-| `private` | 關鍵字（不區分大小寫） | 隱藏徽章與星標歷史 |
+| `private` | 關鍵字（不區分大小寫） | 隱藏徽章 |
 | `LICENSE_TYPE` | 授權識別碼 | 生成對應的 LICENSE 檔案 |
 | `REPO_PATH` | `github.com/{owner}/{repo}` | 覆蓋自動偵測的擁有者與儲存庫 |
 

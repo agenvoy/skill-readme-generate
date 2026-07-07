@@ -119,7 +119,7 @@ Generates the corresponding LICENSE from one of seven templates: MIT, Apache-2.0
 /readme-generate private
 ```
 
-Hides badges and star history, keeping only the tagline and body copy — appropriate for internal projects.
+Hides badges, keeping only the tagline and body copy — appropriate for internal projects.
 
 ### Override Repository Path
 
@@ -151,7 +151,7 @@ Outputs JSON containing language, name, version, exported types, functions, and 
 
 | Parameter | Format | Description |
 |-----------|--------|-------------|
-| `private` | Keyword (case-insensitive) | Hide badges and star history |
+| `private` | Keyword (case-insensitive) | Hide badges |
 | `LICENSE_TYPE` | License identifier | Generate the corresponding LICENSE file |
 | `REPO_PATH` | `github.com/{owner}/{repo}` | Override auto-detected owner and repository |
 
