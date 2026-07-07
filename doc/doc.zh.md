@@ -13,7 +13,7 @@
 ### 從 GitHub 複製
 
 ```bash
-git clone https://github.com/pardnchiu/skill-readme-generate.git \
+git clone https://github.com/agenvoy/skill-readme-generate.git \
     ~/.claude/skills/readme-generate
 ```
 

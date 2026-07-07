@@ -1,5 +1,6 @@
 > [!NOTE]
-> 此 README 由 [SKILL](https://github.com/pardnchiu/skill-readme-generate) 生成，英文版請參閱 [這裡](../README.md)。
+> 此 README 由 [SKILL](https://github.com/agenvoy/skill-readme-generate) 生成，英文版請參閱 [這裡](../README.md)。<br>
+> 此 skill 的實作內容全由 agent 生成，開發者僅針對 input / output 進行調整。
 
 ***
 
@@ -8,8 +9,7 @@
 </p>
 
 <p align="center">
-<a href="../LICENSE"><img src="https://img.shields.io/github/v/tag/pardnchiu/skill-readme-generate?include_prereleases&style=for-the-badge" alt="Version"></a>
-<a href="https://github.com/pardnchiu/skill-readme-generate/releases"><img src="https://img.shields.io/github/license/pardnchiu/skill-readme-generate?include_prereleases&style=for-the-badge" alt="License"></a>
+<a href="../LICENSE"><img src="https://img.shields.io/github/license/agenvoy/skill-readme-generate?include_prereleases&style=for-the-badge" alt="License"></a>
 </p>
 
 ***
