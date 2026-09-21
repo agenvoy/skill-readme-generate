@@ -5,47 +5,42 @@
 ## 前置需求
 
 - Python 3.10 或更高版本（腳本使用 `dict | None` 聯集型別語法）
-- [Claude Code](https://claude.ai/claude-code) CLI 已安裝並設定完成
+- 可載入 `SKILL.md` skill 並執行 shell 指令的 agent harness
 - Git（用於讀取 `git remote`、首次提交年份等資訊）
 
 ## 安裝
+
+`<skills-dir>` 為所用 harness 掃描的 skill 目錄。
 
 ### 從 GitHub 複製
 
 ```bash
 git clone https://github.com/agenvoy/skill-readme-generate.git \
-    ~/.claude/skills/readme-generate
+    <skills-dir>/readme-generate
 ```
 
 ### 手動安裝
 
-將下列檔案放置於 `~/.claude/skills/readme-generate/`：
+將下列檔案放置於 `<skills-dir>/readme-generate/`：
 
 ```
 readme-generate/
 ├── SKILL.md                  # Skill 定義與流程協議
-├── scripts/
-│   ├── analyze_project.py    # 原始碼分析腳本
-│   ├── setup_config.py       # 作者設定腳本
-│   ├── examples/             # README / doc 生成藍本
-│   └── licenses/             # 開源授權範本
 ├── LICENSE
-├── README.md
-└── doc/
-    ├── README.zh.md
-    ├── doc.md
-    ├── doc.zh.md
-    ├── architecture.md
-    └── architecture.zh.md
+└── scripts/
+    ├── analyze_project.py    # 原始碼分析腳本
+    ├── setup_config.py       # 作者設定腳本
+    ├── examples/             # README / doc 生成藍本
+    └── licenses/             # 開源授權範本
 ```
 
-安裝完成後，於 Claude Code 中以 `/readme-generate` 呼叫即可。
+安裝完成後，於 harness 中以 `/readme-generate` 呼叫即可。
 
 ## 設定
 
 ### 作者設定檔
 
-每次執行 `/readme-generate` 都會先以 `setup_config.py check` 檢查 `~/.skill-readme-generate.json`；缺失或欄位不完整時，Claude 會以 `AskUserQuestion` 詢問四個欄位並寫入。
+每次執行 `/readme-generate` 都會先以 `setup_config.py check` 檢查 `~/.skill-readme-generate.json`；缺失或欄位不完整時，agent 會向使用者詢問四個欄位並寫入。
 
 | 欄位 | 必填 | 說明 |
 |------|------|------|
@@ -67,10 +62,10 @@ readme-generate/
 
 ### 手動初始化
 
-於終端機直接執行腳本可在 Claude Code 外建立或檢視設定：
+於終端機直接執行腳本可在 harness 外建立或檢視設定：
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
+python3 <skills-dir>/readme-generate/scripts/setup_config.py
 ```
 
 若檔案已存在則印出現有設定；若不存在則以 `input()` 逐欄詢問。stdin 非 TTY 時以 exit 2 結束。
@@ -78,7 +73,7 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
 ### 非互動寫入
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/setup_config.py write \
+python3 <skills-dir>/readme-generate/scripts/setup_config.py write \
     "張三 John Doe" \
     "dev@example.com" \
     "https://linkedin.com/in/johndoe" \
@@ -97,7 +92,7 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py write \
 /readme-generate
 ```
 
-於當前 Claude Code 工作目錄執行：
+於 harness 當前工作目錄執行：
 
 1. 載入或建立作者設定
 2. 執行 `analyze_project.py` 分析專案
@@ -118,23 +113,6 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py write \
 
 README 跳過封面、標語、徽章、授權與作者區段，版權頁尾僅保留 `©️ {year}`。
 
-### 只重生成部分檔案
-
-```bash
-/readme-generate --only readme
-/readme-generate --only doc,architecture
-```
-
-僅覆寫指定目標對應的檔案集；未指定的文件與 LICENSE 不讀取、不覆寫，且忽略 `LICENSE_TYPE`。
-
-### usage 教學模式
-
-```bash
-/readme-generate usage
-```
-
-`README.md` 與 `doc/README.zh.md` 整份改寫為純使用說明（前置需求 / 安裝 / 設定 / 使用方式 / 參考），不觸碰 `doc/doc.md`、`doc/architecture.md` 與 LICENSE。
-
 ### 覆蓋儲存庫路徑
 
 ```bash
@@ -147,15 +125,14 @@ README 跳過封面、標語、徽章、授權與作者區段，版權頁尾僅�
 
 ```bash
 /readme-generate private MIT github.com/foo/bar
-/readme-generate private --only readme
 ```
 
-位置參數順序無關；`--only` 與其值視為一組。
+參數順序無關。
 
 ### 手動執行原始碼分析
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/analyze_project.py /path/to/project
+python3 <skills-dir>/readme-generate/scripts/analyze_project.py /path/to/project
 ```
 
 輸出包含語言、名稱、版本、檔案清單、匯出型別、函式與相依性的 JSON，可用於除錯或整合至其他工具。
@@ -167,18 +144,8 @@ python3 ~/.claude/skills/readme-generate/scripts/analyze_project.py /path/to/pro
 | 參數 | 格式 | 說明 |
 |------|------|------|
 | `private` | 關鍵字（不區分大小寫） | 跳過封面、標語、徽章、授權與作者區段 |
-| `usage` | 關鍵字（不區分大小寫） | 僅生成純使用說明版 README 兩檔；強制目標集為 `readme`，忽略 `LICENSE_TYPE` |
-| `LICENSE_TYPE` | 授權識別碼 | 生成對應的 LICENSE 檔案（`--only` 或 `usage` 時忽略） |
+| `LICENSE_TYPE` | 授權識別碼 | 生成對應的 LICENSE 檔案 |
 | `REPO_PATH` | `github.com/{owner}/{repo}` | 覆蓋自動偵測的擁有者與儲存庫 |
-| `--only <targets>` | 逗號分隔，亦接受 `--only=<targets>` | 僅重生成指定目標 |
-
-### `--only` 目標
-
-| Target（不區分大小寫） | 重新生成檔案 |
-|------|------|
-| `readme` | `README.md` + `doc/README.zh.md` |
-| `doc` | `doc/doc.md` + `doc/doc.zh.md` |
-| `architecture` | `doc/architecture.md` + `doc/architecture.zh.md` |
 
 ### 支援的授權類型
 
@@ -202,7 +169,7 @@ python3 ~/.claude/skills/readme-generate/scripts/analyze_project.py /path/to/pro
 | `doc/doc.zh.md` | 繁體中文詳細技術文件 |
 | `doc/architecture.md` | 英文詳細架構圖 |
 | `doc/architecture.zh.md` | 繁體中文詳細架構圖 |
-| `LICENSE` | 無 `--only` 且非 `usage` 時處理；未指定類型且不存在時預設 MIT |
+| `LICENSE` | 依指定類型生成；未指定且不存在時預設 MIT |
 
 ### setup_config.py 子指令
 

@@ -5,7 +5,7 @@
 ***
 
 <p align="center">
-  <strong>BILINGUAL READMES AUTO-GENERATED FROM YOUR SOURCE!</strong>
+<strong>BILINGUAL READMES AUTO-GENERATED FROM YOUR SOURCE!</strong>
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 ***
 
-> A Claude Code skill with six-file bilingual output, selective `--only` regeneration, and a usage tutorial mode
+> An agent skill with six-file bilingual docs, source-code analysis, and built-in license templates
 
 ## Table of Contents
 
@@ -24,11 +24,11 @@
 
 ## Features
 
-> Install to `~/.claude/skills/readme-generate/` · [Documentation](./doc/doc.md)
+> Install to `<skills-dir>/readme-generate/` · [Documentation](./doc/doc.md)
 
 - **Six-File Bilingual Output** — One run produces README, doc, and architecture in both English and Traditional Chinese, authored in Chinese first to keep terminology consistent across translations.
 - **Source-Code-Driven Analysis** — `analyze_project.py` extracts exported types, function signatures, and dependencies for Python (AST), Go, JS, and TS; PHP and Swift are detected at file level only.
-- **Composable Generation Modes** — `private`, `usage`, `LICENSE_TYPE`, `REPO_PATH`, and `--only` combine in any order, regenerating only the chosen file sets without touching other docs or the LICENSE.
+- **Harness-Agnostic** — Script paths resolve from wherever the skill is loaded and no tool names are hard-coded, so any agent harness that reads `SKILL.md` can run it.
 - **Persistent Author Config** — `setup_config.py` keeps author, email, and GitHub identity in `~/.skill-readme-generate.json`, created once and reused across projects.
 - **Seven Built-In License Templates** — MIT, Apache-2.0, GPL-3.0, BSD-3-Clause, ISC, Unlicense, and Proprietary ship with the skill, defaulting to MIT when no license exists or is specified.
 
@@ -42,9 +42,8 @@ graph TB
     SKILL --> Config[setup_config.py<br/>Author Config]
     SKILL --> Analyze[analyze_project.py<br/>Source Analysis]
     Config --> JSON[~/.skill-readme-generate.json]
-    SKILL --> Target[Target Set<br/>readme / doc / architecture]
-    Analyze --> Output[Bilingual Docs<br/>+ LICENSE]
-    Target --> Output
+    Analyze --> Output[Six Bilingual Files<br/>+ LICENSE]
+    SKILL --> Output
 ```
 
 ## License

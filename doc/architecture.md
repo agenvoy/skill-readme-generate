@@ -7,15 +7,14 @@
 ```mermaid
 graph TB
     User[User] -->|/readme-generate| SKILL[SKILL.md<br/>Orchestration]
-    SKILL --> Parser[Argument Parser<br/>private / usage / LICENSE_TYPE<br/>REPO_PATH / --only]
+    SKILL --> Parser[Argument Parser<br/>private / LICENSE_TYPE / REPO_PATH]
     SKILL --> Config[setup_config.py<br/>Author Config]
     SKILL --> Analyze[analyze_project.py<br/>Source Analysis]
     Config --> JSON[~/.skill-readme-generate.json]
-    Parser --> Target[Target Set<br/>readme / doc / architecture]
     Analyze --> Data[Language / Types / Functions<br/>Dependencies / Files]
     Examples[scripts/examples<br/>Blueprints] --> Generator
     Licenses[scripts/licenses<br/>License Templates] --> Generator
-    Target --> Generator[Generator<br/>Chinese First → English]
+    Parser --> Generator[Generator<br/>Chinese First → English]
     Data --> Generator
     JSON --> Generator
     Generator --> Output[README.md / doc/README.zh.md<br/>doc/doc.md / doc.zh.md<br/>doc/architecture.md / architecture.zh.md<br/>LICENSE]
@@ -23,27 +22,26 @@ graph TB
 
 ## Module: SKILL.md (Orchestration)
 
-Defines the workflow, section ordering, and validation checklist Claude follows when executing the skill. Contains no executable code; it constrains LLM behavior through prompt instructions.
+Defines the workflow, section ordering, and validation checklist the agent follows when executing the skill. Contains no executable code; it constrains LLM behavior through prompt instructions, and script paths use `{skill_dir}`, resolved from the actual load location.
 
 ```mermaid
 graph TB
     subgraph SKILL["SKILL.md"]
-        Step0[0 Author Config] --> Step1[1 Parse Arguments<br/>Resolve Target Set]
+        Step0[0 Author Config] --> Step1[1 Parse Arguments]
         Step1 --> Step2[2 Analyze Project]
         Step2 --> Step3[3 Extract Params<br/>owner / repo / year]
         Step3 --> Step4[4 Review Existing Docs]
-        Step4 --> Step5[5 Extract 3–5 Features<br/>skipped in usage]
+        Step4 --> Step5[5 Extract 3–5 Features]
         Step5 --> Step6[6 Generate readme]
         Step6 --> Step7[7 Generate doc]
         Step7 --> Step8[8 Generate architecture]
-        Step8 --> Step9[9 LICENSE<br/>full run, non-usage only]
+        Step8 --> Step9[9 LICENSE]
         Step9 --> Step10[10 Validation Checklist]
+        Step10 --> Step11[11 Save]
     end
     SlashCmd[/readme-generate/] --> SKILL
-    SKILL --> Files[Target Files + LICENSE]
+    SKILL --> Files[Six Output Files + LICENSE]
 ```
-
-Each generation step runs only when its target is in the target set; files outside the set are neither read nor overwritten.
 
 ## Module: setup_config.py (Author Config)
 
@@ -141,18 +139,18 @@ Full flow of a single `/readme-generate` invocation:
 ```mermaid
 sequenceDiagram
     participant User
-    participant Claude as Claude Code
+    participant Agent as Agent Harness
     participant Skill as SKILL.md
     participant Config as setup_config.py
     participant Analyze as analyze_project.py
     participant FS as File System
 
-    User->>Claude: /readme-generate [args]
-    Claude->>Skill: Load skill definition
+    User->>Agent: /readme-generate [args]
+    Agent->>Skill: Load skill definition
     Skill->>Config: setup_config.py check
     alt Config missing
         Config-->>Skill: exit 1
-        Skill->>User: AskUserQuestion (4 fields)
+        Skill->>User: Ask for 4 fields
         User-->>Skill: Author info
         Skill->>Config: setup_config.py write ...
         Config->>FS: Write ~/.skill-readme-generate.json
@@ -160,20 +158,14 @@ sequenceDiagram
     else Config complete
         Config-->>Skill: JSON
     end
-    Skill->>Skill: Parse arguments and resolve target set
+    Skill->>Skill: Parse PRIVATE_MODE / LICENSE_TYPE / REPO_PATH
     Skill->>Analyze: analyze_project.py <path>
     Analyze->>FS: Recursively scan sources
     Analyze-->>Skill: ProjectAnalysis JSON
-    opt readme ∈ target set
-        Skill->>FS: Write doc/README.zh.md → README.md
-    end
-    opt doc ∈ target set
-        Skill->>FS: Write doc/doc.zh.md → doc/doc.md
-    end
-    opt architecture ∈ target set
-        Skill->>FS: Write doc/architecture.zh.md → doc/architecture.md
-    end
-    opt No --only, not usage, and (type given or no LICENSE)
+    Skill->>FS: Write doc/README.zh.md → README.md
+    Skill->>FS: Write doc/doc.zh.md → doc/doc.md
+    Skill->>FS: Write doc/architecture.zh.md → doc/architecture.md
+    opt LICENSE_TYPE given or no LICENSE
         Skill->>FS: Write LICENSE
     end
     Skill-->>User: Completion notice
@@ -181,34 +173,22 @@ sequenceDiagram
 
 ## Argument Parsing State Machine
 
-Argument detection and target set resolution:
+Detection and classification of the three optional arguments:
 
 ```mermaid
 stateDiagram-v2
     [*] --> Token: Read next token
-    Token --> OnlyCheck: Token present
-    Token --> Resolve: No token
-    OnlyCheck --> SetOnly: --only or --only=
-    OnlyCheck --> PrivateCheck: No match
+    Token --> PrivateCheck: Token present
+    Token --> Finalize: No token
     PrivateCheck --> SetPrivate: private
-    PrivateCheck --> UsageCheck: No match
-    UsageCheck --> SetUsage: usage
-    UsageCheck --> RepoCheck: No match
+    PrivateCheck --> RepoCheck: No match
     RepoCheck --> SetRepo: Contains github.com/
     RepoCheck --> LicenseCheck: No match
     LicenseCheck --> SetLicense: Known license alias
     LicenseCheck --> Ignore: No match
-    SetOnly --> Token
     SetPrivate --> Token
-    SetUsage --> Token
     SetRepo --> Token
     SetLicense --> Token
     Ignore --> Token
-    Resolve --> UsageTarget: USAGE_MODE
-    Resolve --> OnlyTarget: ONLY_TARGETS non-empty
-    Resolve --> FullTarget: Otherwise
-    UsageTarget --> Finalize: target = readme, ignore LICENSE_TYPE
-    OnlyTarget --> Finalize: target = given, ignore LICENSE_TYPE
-    FullTarget --> Finalize: target = all + LICENSE
     Finalize --> [*]: proprietary implies private
 ```

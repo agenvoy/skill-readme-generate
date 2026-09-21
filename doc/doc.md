@@ -5,47 +5,42 @@
 ## Prerequisites
 
 - Python 3.10 or higher (the scripts use `dict | None` union syntax)
-- [Claude Code](https://claude.ai/claude-code) CLI installed and configured
+- An agent harness that loads `SKILL.md` skills and can run shell commands
 - Git (used to read `git remote` and the first commit year)
 
 ## Installation
+
+`<skills-dir>` is the skill directory your harness scans.
 
 ### Clone from GitHub
 
 ```bash
 git clone https://github.com/agenvoy/skill-readme-generate.git \
-    ~/.claude/skills/readme-generate
+    <skills-dir>/readme-generate
 ```
 
 ### Manual Installation
 
-Place the following files under `~/.claude/skills/readme-generate/`:
+Place the following files under `<skills-dir>/readme-generate/`:
 
 ```
 readme-generate/
 ├── SKILL.md                  # Skill definition and protocol
-├── scripts/
-│   ├── analyze_project.py    # Source analysis script
-│   ├── setup_config.py       # Author config script
-│   ├── examples/             # README / doc generation blueprints
-│   └── licenses/             # Open-source license templates
 ├── LICENSE
-├── README.md
-└── doc/
-    ├── README.zh.md
-    ├── doc.md
-    ├── doc.zh.md
-    ├── architecture.md
-    └── architecture.zh.md
+└── scripts/
+    ├── analyze_project.py    # Source analysis script
+    ├── setup_config.py       # Author config script
+    ├── examples/             # README / doc generation blueprints
+    └── licenses/             # Open-source license templates
 ```
 
-Invoke it in Claude Code with `/readme-generate`.
+Invoke it from your harness with `/readme-generate`.
 
 ## Configuration
 
 ### Author Config File
 
-Every `/readme-generate` run first checks `~/.skill-readme-generate.json` via `setup_config.py check`; when the file is missing or incomplete, Claude asks for the four fields with `AskUserQuestion` and writes them.
+Every `/readme-generate` run first checks `~/.skill-readme-generate.json` via `setup_config.py check`; when the file is missing or incomplete, the agent asks the user for the four fields and writes them.
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -67,10 +62,10 @@ Example `~/.skill-readme-generate.json`:
 
 ### Manual Initialization
 
-Run the script in a terminal to create or view the config outside Claude Code:
+Run the script in a terminal to create or view the config outside the harness:
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
+python3 <skills-dir>/readme-generate/scripts/setup_config.py
 ```
 
 It prints the existing config if present; otherwise it prompts for each field with `input()`. It exits with code 2 when stdin is not a TTY.
@@ -78,7 +73,7 @@ It prints the existing config if present; otherwise it prompts for each field wi
 ### Non-Interactive Write
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/setup_config.py write \
+python3 <skills-dir>/readme-generate/scripts/setup_config.py write \
     "張三 John Doe" \
     "dev@example.com" \
     "https://linkedin.com/in/johndoe" \
@@ -97,7 +92,7 @@ When `REPO_PATH` (`github.com/{owner}/{repo}`) is passed on the command line, `{
 /readme-generate
 ```
 
-Runs in the current Claude Code working directory:
+Runs in the harness's current working directory:
 
 1. Load or create the author config
 2. Run `analyze_project.py` on the project
@@ -118,23 +113,6 @@ Runs in the current Claude Code working directory:
 
 The README skips the cover, tagline, badges, license, and author sections; the copyright footer keeps only `©️ {year}`.
 
-### Regenerate Selected Files
-
-```bash
-/readme-generate --only readme
-/readme-generate --only doc,architecture
-```
-
-Overwrites only the file sets of the given targets; unselected docs and the LICENSE are neither read nor overwritten, and `LICENSE_TYPE` is ignored.
-
-### Usage Tutorial Mode
-
-```bash
-/readme-generate usage
-```
-
-Rewrites `README.md` and `doc/README.zh.md` as a pure usage guide (prerequisites / installation / configuration / usage / reference), leaving `doc/doc.md`, `doc/architecture.md`, and the LICENSE untouched.
-
 ### Override Repository Path
 
 ```bash
@@ -147,15 +125,14 @@ Replaces `{owner}/{repo}` in every GitHub URL with `foo/bar`.
 
 ```bash
 /readme-generate private MIT github.com/foo/bar
-/readme-generate private --only readme
 ```
 
-Positional arguments are order-independent; `--only` and its value are parsed as a pair.
+Arguments are order-independent.
 
 ### Run Source Analysis Manually
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/analyze_project.py /path/to/project
+python3 <skills-dir>/readme-generate/scripts/analyze_project.py /path/to/project
 ```
 
 Outputs JSON with language, name, version, file list, exported types, functions, and dependencies, useful for debugging or integration with other tools.
@@ -167,18 +144,8 @@ Outputs JSON with language, name, version, file list, exported types, functions,
 | Argument | Format | Description |
 |----------|--------|-------------|
 | `private` | Keyword (case-insensitive) | Skip cover, tagline, badges, license, and author sections |
-| `usage` | Keyword (case-insensitive) | Generate only the two usage-guide README files; forces the target set to `readme` and ignores `LICENSE_TYPE` |
-| `LICENSE_TYPE` | License identifier | Generate the matching LICENSE file (ignored with `--only` or `usage`) |
+| `LICENSE_TYPE` | License identifier | Generate the matching LICENSE file |
 | `REPO_PATH` | `github.com/{owner}/{repo}` | Override the detected owner and repository |
-| `--only <targets>` | Comma-separated; `--only=<targets>` also accepted | Regenerate only the given targets |
-
-### `--only` Targets
-
-| Target (case-insensitive) | Regenerated Files |
-|---------------------------|-------------------|
-| `readme` | `README.md` + `doc/README.zh.md` |
-| `doc` | `doc/doc.md` + `doc/doc.zh.md` |
-| `architecture` | `doc/architecture.md` + `doc/architecture.zh.md` |
 
 ### Supported Licenses
 
@@ -202,7 +169,7 @@ Outputs JSON with language, name, version, file list, exported types, functions,
 | `doc/doc.zh.md` | Traditional Chinese detailed technical documentation |
 | `doc/architecture.md` | English detailed architecture diagrams |
 | `doc/architecture.zh.md` | Traditional Chinese detailed architecture diagrams |
-| `LICENSE` | Handled only without `--only` and outside `usage`; defaults to MIT when unspecified and absent |
+| `LICENSE` | Generated for the given type; defaults to MIT when unspecified and absent |
 
 ### setup_config.py Subcommands
 

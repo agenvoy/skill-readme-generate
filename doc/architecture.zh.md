@@ -7,15 +7,14 @@
 ```mermaid
 graph TB
     User[使用者] -->|/readme-generate| SKILL[SKILL.md<br/>流程協調]
-    SKILL --> Parser[參數解析<br/>private / usage / LICENSE_TYPE<br/>REPO_PATH / --only]
+    SKILL --> Parser[參數解析<br/>private / LICENSE_TYPE / REPO_PATH]
     SKILL --> Config[setup_config.py<br/>作者設定]
     SKILL --> Analyze[analyze_project.py<br/>原始碼分析]
     Config --> JSON[~/.skill-readme-generate.json]
-    Parser --> Target[目標集<br/>readme / doc / architecture]
     Analyze --> Data[語言 / 型別 / 函式<br/>相依 / 檔案清單]
     Examples[scripts/examples<br/>生成藍本] --> Generator
     Licenses[scripts/licenses<br/>授權範本] --> Generator
-    Target --> Generator[生成器<br/>中文先行 → 英文翻譯]
+    Parser --> Generator[生成器<br/>中文先行 → 英文翻譯]
     Data --> Generator
     JSON --> Generator
     Generator --> Output[README.md / doc/README.zh.md<br/>doc/doc.md / doc.zh.md<br/>doc/architecture.md / architecture.zh.md<br/>LICENSE]
@@ -23,27 +22,26 @@ graph TB
 
 ## Module: SKILL.md（流程協調）
 
-定義 Claude 執行此 skill 時需遵守的工作流程、區段順序與驗證清單。本身不含執行碼，僅以提示詞約束 LLM 行為。
+定義 agent 執行此 skill 時需遵守的工作流程、區段順序與驗證清單。本身不含執行碼，僅以提示詞約束 LLM 行為；腳本路徑以 `{skill_dir}` 表示，依實際載入位置代入。
 
 ```mermaid
 graph TB
     subgraph SKILL["SKILL.md"]
-        Step0[0 作者設定] --> Step1[1 解析參數<br/>決定目標集]
+        Step0[0 作者設定] --> Step1[1 解析參數]
         Step1 --> Step2[2 分析專案]
         Step2 --> Step3[3 提取參數<br/>owner / repo / year]
         Step3 --> Step4[4 檢視既有文件]
-        Step4 --> Step5[5 提煉 3–5 特色<br/>usage 模式跳過]
+        Step4 --> Step5[5 提煉 3–5 特色]
         Step5 --> Step6[6 生成 readme]
         Step6 --> Step7[7 生成 doc]
         Step7 --> Step8[8 生成 architecture]
-        Step8 --> Step9[9 LICENSE<br/>僅全量且非 usage]
+        Step8 --> Step9[9 LICENSE]
         Step9 --> Step10[10 驗證清單]
+        Step10 --> Step11[11 儲存]
     end
     SlashCmd[/readme-generate/] --> SKILL
-    SKILL --> Files[目標集檔案 + LICENSE]
+    SKILL --> Files[六檔輸出 + LICENSE]
 ```
-
-每個生成步驟僅在對應 target 屬於目標集時執行，未在目標集的檔案不讀取、不覆寫。
 
 ## Module: setup_config.py（作者設定）
 
@@ -141,18 +139,18 @@ classDiagram
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant Claude as Claude Code
+    participant Agent as Agent Harness
     participant Skill as SKILL.md
     participant Config as setup_config.py
     participant Analyze as analyze_project.py
     participant FS as 檔案系統
 
-    User->>Claude: /readme-generate [args]
-    Claude->>Skill: 載入 skill 定義
+    User->>Agent: /readme-generate [args]
+    Agent->>Skill: 載入 skill 定義
     Skill->>Config: setup_config.py check
     alt 設定缺失
         Config-->>Skill: exit 1
-        Skill->>User: AskUserQuestion 四欄位
+        Skill->>User: 詢問四欄位
         User-->>Skill: 作者資訊
         Skill->>Config: setup_config.py write ...
         Config->>FS: 寫入 ~/.skill-readme-generate.json
@@ -160,20 +158,14 @@ sequenceDiagram
     else 設定完整
         Config-->>Skill: JSON
     end
-    Skill->>Skill: 解析參數並決定目標集
+    Skill->>Skill: 解析 PRIVATE_MODE / LICENSE_TYPE / REPO_PATH
     Skill->>Analyze: analyze_project.py <path>
     Analyze->>FS: 遞迴掃描原始檔
     Analyze-->>Skill: ProjectAnalysis JSON
-    opt readme ∈ 目標集
-        Skill->>FS: 寫入 doc/README.zh.md → README.md
-    end
-    opt doc ∈ 目標集
-        Skill->>FS: 寫入 doc/doc.zh.md → doc/doc.md
-    end
-    opt architecture ∈ 目標集
-        Skill->>FS: 寫入 doc/architecture.zh.md → doc/architecture.md
-    end
-    opt 無 --only 且非 usage，且（指定類型或無 LICENSE）
+    Skill->>FS: 寫入 doc/README.zh.md → README.md
+    Skill->>FS: 寫入 doc/doc.zh.md → doc/doc.md
+    Skill->>FS: 寫入 doc/architecture.zh.md → doc/architecture.md
+    opt 指定 LICENSE_TYPE 或無 LICENSE
         Skill->>FS: 寫入 LICENSE
     end
     Skill-->>User: 完成通知
@@ -181,34 +173,22 @@ sequenceDiagram
 
 ## 參數解析狀態機
 
-參數偵測與目標集決定：
+三個選填參數的偵測與分類：
 
 ```mermaid
 stateDiagram-v2
     [*] --> Token: 讀取下一個 token
-    Token --> OnlyCheck: token 存在
-    Token --> Resolve: 無 token
-    OnlyCheck --> SetOnly: --only 或 --only=
-    OnlyCheck --> PrivateCheck: 不符
+    Token --> PrivateCheck: token 存在
+    Token --> Finalize: 無 token
     PrivateCheck --> SetPrivate: private
-    PrivateCheck --> UsageCheck: 不符
-    UsageCheck --> SetUsage: usage
-    UsageCheck --> RepoCheck: 不符
+    PrivateCheck --> RepoCheck: 不符
     RepoCheck --> SetRepo: 含 github.com/
     RepoCheck --> LicenseCheck: 不符
     LicenseCheck --> SetLicense: 符合授權別名
     LicenseCheck --> Ignore: 全部不符
-    SetOnly --> Token
     SetPrivate --> Token
-    SetUsage --> Token
     SetRepo --> Token
     SetLicense --> Token
     Ignore --> Token
-    Resolve --> UsageTarget: USAGE_MODE
-    Resolve --> OnlyTarget: ONLY_TARGETS 非空
-    Resolve --> FullTarget: 其他
-    UsageTarget --> Finalize: 目標集 = readme，忽略 LICENSE_TYPE
-    OnlyTarget --> Finalize: 目標集 = 指定值，忽略 LICENSE_TYPE
-    FullTarget --> Finalize: 目標集 = 全部 + LICENSE
     Finalize --> [*]: proprietary 隱含 private
 ```

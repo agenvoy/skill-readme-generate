@@ -10,7 +10,7 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 ## 指令語法
 
 ```
-/readme-generate [private] [usage] [LICENSE_TYPE] [REPO_PATH] [--only <targets>]
+/readme-generate [private] [LICENSE_TYPE] [REPO_PATH]
 ```
 
 ### 參數（全部為選填）
@@ -18,38 +18,18 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 | 參數 | 格式 | 範例 | 行為 |
 |-----------|--------|---------|----------|
 | `private` | 關鍵字 | `private` | 生成時不包含徽章和星標歷史 |
-| `usage` | 關鍵字 | `usage` | 僅生成 `README.md` + `doc/README.zh.md`，內容改為純使用說明教學（見下方「usage 模式」），不含徽章/星標/授權/作者區段，不觸碰 doc/architecture/LICENSE |
-| `LICENSE_TYPE` | 授權識別碼 | `MIT`、`Apache-2.0` | 生成 LICENSE 檔案（`usage` 模式下忽略） |
+| `LICENSE_TYPE` | 授權識別碼 | `MIT`、`Apache-2.0` | 生成 LICENSE 檔案 |
 | `REPO_PATH` | `github.com/{owner}/{repo}` | `github.com/foo/bar` | 覆蓋預設的擁有者/儲存庫 |
-| `--only <targets>` | 逗號分隔的目標清單 | `--only readme`、`--only doc,architecture` | 僅重新生成指定檔案集，保留其他檔案與 LICENSE 不動（`usage` 模式下無意義，因已固定為 readme 兩檔） |
-
-### `--only` 目標對應
-
-| Target（不區分大小寫） | 重新生成檔案 |
-|---|---|
-| `readme` | `README.md` + `doc/README.zh.md` |
-| `doc` | `doc/doc.md` + `doc/doc.zh.md` |
-| `architecture` | `doc/architecture.md` + `doc/architecture.zh.md` |
-
-**未指定 `--only` = 全部重新生成 + 必要時寫入 LICENSE。**
-
-**`--only` 存在時的覆寫保護：**
-
-- 明確未指定的目標檔案**不得讀取、不得覆寫**，包含 LICENSE
-- 有 `--only` 時 **忽略 `LICENSE_TYPE`**（即使傳入也不產生 LICENSE 檔）
-- `private` 與 `REPO_PATH` 仍套用到被重新生成的檔案上
 
 ### 參數偵測規則
 
 | 模式 | 偵測為 |
 |---------|-------------|
 | `private`（不區分大小寫） | `PRIVATE_MODE` 旗標 |
-| `usage`（不區分大小寫） | `USAGE_MODE` 旗標；強制 `ONLY_TARGETS = readme`，忽略 `LICENSE_TYPE` |
 | 包含 `github.com/` | `REPO_PATH` |
 | 符合已知授權類型（不區分大小寫） | `LICENSE_TYPE` |
-| `--only <targets>` 或 `--only=<targets>` | `ONLY_TARGETS`（逗號分隔，大小寫不敏感） |
 
-**順序獨立**：位置參數可以任意順序出現；`--only` 與其值視為一組。
+**順序獨立**：參數可以任意順序出現。
 
 ### 支援的 LICENSE 類型
 
@@ -72,11 +52,6 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 /readme-generate private MIT                      # 私有模式 + MIT LICENSE
 /readme-generate proprietary                      # 私有模式 + Proprietary LICENSE
 /readme-generate github.com/foo/bar               # 全部重生成，使用自訂儲存庫路徑
-/readme-generate --only README                    # 只重生成 README.md + doc/README.zh.md
-/readme-generate --only doc,architecture          # 只重生成 doc 與 architecture 雙語四檔
-/readme-generate private --only README            # 僅 README + 套用 private 模式（不動 LICENSE）
-/readme-generate usage                            # 僅生成 README.md + doc/README.zh.md，純使用說明教學版本
-/readme-generate usage github.com/foo/bar         # usage 模式 + 自訂儲存庫路徑
 ```
 
 ---
@@ -84,6 +59,8 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 ## Step 0：作者設定（強制性 - 第一步）
 
 **在執行任何動作前，必須先載入或建立作者設定。所有載入與建立都透過 `scripts/setup_config.py` 腳本完成。**
+
+下文指令中的 `{skill_dir}` 為本 `SKILL.md` 所在目錄的絕對路徑，依當前執行環境實際載入位置代入。
 
 ### 設定檔位置
 
@@ -107,7 +84,7 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 **Step 0.1：檢查設定檔**
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/setup_config.py check
+python3 {skill_dir}/scripts/setup_config.py check
 ```
 
 | Exit Code | stdout | 意義 | 下一步 |
@@ -117,7 +94,7 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py check
 
 **Step 0.2：收集使用者輸入**
 
-當 Step 0.1 回傳 exit code `1` 時，**必須使用 `AskUserQuestion` 工具**詢問下列四個欄位（順序固定，全部必填）：
+當 Step 0.1 回傳 exit code `1` 時，**必須向使用者詢問**下列四個欄位（順序固定，全部必填）：
 
 | 欄位 | 提示文字 | 範例 |
 |------|----------|------|
@@ -131,18 +108,18 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py check
 將使用者的四個答案按順序傳給腳本的 `write` 子指令：
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/setup_config.py write \
+python3 {skill_dir}/scripts/setup_config.py write \
     "{author_name}" "{author_email}" "{author_url}" "{github_owner}"
 ```
 
-腳本會將設定寫入 `~/.skill-readme-generate.json` 並將該 JSON 印到 stdout（供 Claude 解析載入）。後續執行可直接由 Step 0.1 讀取，不再詢問。
+腳本會將設定寫入 `~/.skill-readme-generate.json` 並將該 JSON 印到 stdout（供 agent 解析載入）。後續執行可直接由 Step 0.1 讀取，不再詢問。
 
 ### 手動初始化（使用者自行執行）
 
 使用者可在終端直接執行腳本以互動方式建立設定（適合首次設定或手動重置）：
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
+python3 {skill_dir}/scripts/setup_config.py
 ```
 
 若檔案已存在，腳本會直接印出現有設定；若不存在則以 `input()` 逐欄詢問。
@@ -156,20 +133,18 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
 
 ## 關鍵：必要輸出
 
-**預設（無 `--only`）務必生成六個檔案：**
+**務必生成六個檔案：**
 
-| 檔案 | 語言 | 用途 | Target 歸屬 |
-|------|----------|---------|------|
-| `README.md` | 英文 | 主要文件（精簡，特色驅動） | `readme` |
-| `doc/README.zh.md` | 繁體中文（ZH-TW） | 中文文件（精簡，特色驅動） | `readme` |
-| `doc/doc.md` | 英文 | 詳細技術文件（安裝、使用、參考） | `doc` |
-| `doc/doc.zh.md` | 繁體中文（ZH-TW） | 中文詳細技術文件 | `doc` |
-| `doc/architecture.md` | 英文 | 詳細架構圖（完整 Mermaid） | `architecture` |
-| `doc/architecture.zh.md` | 繁體中文（ZH-TW） | 中文詳細架構圖 | `architecture` |
+| 檔案 | 語言 | 用途 |
+|------|----------|---------|
+| `README.md` | 英文 | 主要文件（精簡，特色驅動） |
+| `doc/README.zh.md` | 繁體中文（ZH-TW） | 中文文件（精簡，特色驅動） |
+| `doc/doc.md` | 英文 | 詳細技術文件（安裝、使用、參考） |
+| `doc/doc.zh.md` | 繁體中文（ZH-TW） | 中文詳細技術文件 |
+| `doc/architecture.md` | 英文 | 詳細架構圖（完整 Mermaid） |
+| `doc/architecture.zh.md` | 繁體中文（ZH-TW） | 中文詳細架構圖 |
 
 **README 負責吸引人，doc 負責教會人，architecture 負責畫清楚。**
-
-**`--only` 指定時**：僅輸出指定 target 的對應檔案集；未指定的目標檔案維持原狀不得覆寫，LICENSE 亦不處理。
 
 ---
 
@@ -194,25 +169,17 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
 ## 工作流程
 
 ```
-0.  作者設定  →  `scripts/setup_config.py check` 讀取 ~/.skill-readme-generate.json；缺失則 AskUserQuestion + `write` 子指令建立
-1.  解析      →  從指令中提取 PRIVATE_MODE、USAGE_MODE、LICENSE_TYPE、REPO_PATH、ONLY_TARGETS
-                 - 若 USAGE_MODE → 目標集 = {readme}，`LICENSE_TYPE` 強制忽略，`ONLY_TARGETS` 輸入被覆蓋
-                 - 否則若 ONLY_TARGETS 非空 → `LICENSE_TYPE` 強制忽略；目標集 = 使用者指定
-                 - 否則 → 目標集 = {readme, doc, architecture}
+0.  作者設定  →  `scripts/setup_config.py check` 讀取 ~/.skill-readme-generate.json；缺失則詢問使用者後以 `write` 子指令建立
+1.  解析      →  從指令中提取 PRIVATE_MODE、LICENSE_TYPE、REPO_PATH
 2.  分析      →  在目標專案上執行 analyze_project.py
 3.  提取      →  從專案取得 {repo}、{package}、{year}（或使用 REPO_PATH 覆蓋）
 4.  檢視      →  檢查現有文件、LICENSE、範例
-5.  選特色    →  USAGE_MODE 時跳過（usage 模式不寫功能特點區段）；否則從分析結果中提煉出所有精妙且具代表性的專案特色
-6.  生成 readme        →  僅當 `readme` ∈ 目標集：
-                 - USAGE_MODE → 依「usage 模式內容結構」生成，先建立 doc/README.zh.md 再翻譯為 README.md
-                 - 否則 → 依一般 README 區段順序生成
-7.  生成 doc           →  僅當 `doc` ∈ 目標集（USAGE_MODE 時必為空集，跳過）：先建立 doc/doc.zh.md，再翻譯為 doc/doc.md
-8.  生成 architecture  →  僅當 `architecture` ∈ 目標集（USAGE_MODE 時必為空集，跳過）：先建立 doc/architecture.zh.md，再翻譯為 doc/architecture.md
-9.  授權      →  僅當 ONLY_TARGETS 為空且非 USAGE_MODE 時執行：
-                 - 若指定 LICENSE_TYPE → 使用指定類型
-                 - 若無 LICENSE 檔案且未指定 → 預設生成 MIT LICENSE
-                 - 有 ONLY_TARGETS 或 USAGE_MODE 時完全跳過，不讀取、不覆寫 LICENSE
-10. 驗證      →  USAGE_MODE 依「usage 模式驗證清單」；否則僅驗證目標集對應的檔案，未在目標集的檔案視為「未觸碰」跳過
+5.  選特色    →  從分析結果中提煉出所有精妙且具代表性的專案特色
+6.  生成 readme        →  先建立 doc/README.zh.md，再翻譯為 README.md
+7.  生成 doc           →  先建立 doc/doc.zh.md，再翻譯為 doc/doc.md
+8.  生成 architecture  →  先建立 doc/architecture.zh.md，再翻譯為 doc/architecture.md
+9.  授權      →  若指定 LICENSE_TYPE → 使用指定類型；若無 LICENSE 檔案且未指定 → 預設生成 MIT LICENSE
+10. 驗證      →  依「驗證檢查清單」逐項確認
 11. 儲存      →  README.md 寫入專案根目錄；其餘檔案寫入 doc/ 子目錄（自動建立）
 ```
 
@@ -221,7 +188,7 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
 ## 步驟 1：分析專案
 
 ```bash
-python3 ~/.claude/skills/readme-generate/scripts/analyze_project.py /path/to/project
+python3 {skill_dir}/scripts/analyze_project.py /path/to/project
 ```
 
 輸出：包含語言、名稱、版本、類型、函式、相依性的 JSON。
@@ -372,7 +339,7 @@ sed -n 's/^module //p' go.mod
 A [tech] [what it is] with [key feature 1], [key feature 2], and [key feature 3]
 ```
 - 不超過 20 個英文單字，句尾不加句號
-- `[tech]` = 主要技術框架或語言（e.g., `Go`, `Claude Code`, `Node.js`）
+- `[tech]` = 主要技術框架或語言（e.g., `Go`, `Python`, `Node.js`）
 - `[what it is]` = 產品類型（e.g., `CLI tool`, `skill`, `library`）
 - `[key feature 1~3]` = 從原始碼分析中提煉的 3 個最具代表性特色（名詞片語），用於簡短描述摘要
 
@@ -916,53 +883,6 @@ Creates a skill scanner that concurrently scans all configured paths.
 
 ---
 
-## usage 模式（`/readme-generate usage`）
-
-**目的：只需要一份純教學向的使用說明，不需要行銷向 README（無封面、標語、徽章、星標歷史、授權、作者）。輸出路徑仍是 `README.md` + `doc/README.zh.md`，但內容結構改採「doc.md 教學骨架」。**
-
-### 與一般模式的差異
-
-| 內容 | 一般 README 模式 | usage 模式 |
-|------|------|------|
-| 輸出檔案 | `README.md` + `doc/README.zh.md` | 同左（唯一輸出） |
-| 封面 / 標語 / 徽章 / 星標歷史 | ✓ | **省略** |
-| 功能特點（純文字特色） | ✓ | **省略** |
-| 授權 / 作者區段 | ✓（公開模式） | **省略**（不讀取、不寫入 LICENSE） |
-| 前置需求 / 安裝 / 設定 / 使用方式 / 參考 | 移至 `doc.md`（本次不生成） | **就是本文的主體** |
-| `doc/doc.md`、`doc/architecture.md`、LICENSE | 依 `--only` 決定 | **完全不觸碰** |
-
-### usage 模式區段順序（強制性）
-
-| 順序 | 區段 | 必要 | 內容規則 |
-|-------|---------|----------|------|
-| 0 | LLM 生成通知 + `***` | **是** | 與一般模式順序 0 完全相同格式 |
-| 1 | 一句話描述 | **是** | 與一般模式順序 3 相同格式（`> A [tech] [what it is] with ...`） |
-| 2 | 目錄 | **是** | 依本表順序 3–7 實際存在的區段動態生成 |
-| 3 | 前置需求 | **是** | 內容規則同 doc.md 順序 1 |
-| 4 | 安裝 | **是** | 內容規則同 doc.md 順序 2 |
-| 5 | 設定 | 條件性 | 內容規則同 doc.md 順序 3（僅專案有環境變數/設定檔時包含） |
-| 6 | 使用方式 | **是** | 內容規則同 doc.md 順序 4（Basic → Advanced） |
-| 7 | 參考 | **是** | 內容規則同 doc.md 順序 5（依專案類型選擇 CLI/API/介面/設定參考標題） |
-| 8 | 版權頁尾 | 否 | 固定用公開模式格式：`©️ {year} [{author_name}]({author_url})`（僅頁尾附作者連結，本模式不含獨立的作者區段） |
-
-**規則：**
-- 完全套用 doc.md 生成規則中「順序 1–5」的內容細節（前置需求提取來源、安裝方式列舉、設定表格、使用範例的 Basic→Advanced、參考區段依專案類型的標題與內容），差異僅在於**寫入位置改為 `README.md` / `doc/README.zh.md`，且標題不含「Documentation / 技術文件」字樣、不含「返回 README」連結**（因為本身就是 README）
-- 目錄錨點規則、ZH-TW 翻譯慣例與一般模式相同
-- 若專案已存在 `README.md` / `doc/README.zh.md`，usage 模式**整份覆寫**為上述結構（不保留原本行銷向區段）
-
-### usage 模式驗證清單
-
-- [ ] `README.md`、`doc/README.zh.md` 已建立並儲存
-- [ ] 不含封面、標語、徽章、星標歷史、功能特點、授權、作者區段
-- [ ] 順序 0：LLM 生成通知 + `***`
-- [ ] 順序 1：一句話描述
-- [ ] 順序 2：目錄，錨點對應實際區段
-- [ ] 順序 3–7：前置需求／安裝／設定（如適用）／使用方式／參考，內容完整可執行
-- [ ] 順序 8：版權頁尾為 `©️ {year} [{author_name}]({author_url})`
-- [ ] 未產生／未修改 `doc/doc.md`、`doc/architecture.md`、`LICENSE`
-
----
-
 ## Mermaid 圖表類型
 
 | 類型 | 指令 | 使用案例 |
@@ -1172,8 +1092,6 @@ For licensing inquiries, contact: {author_email}
 ---
 
 ## 驗證檢查清單（必須全部通過）
-
-**`--only` 存在時**：僅驗證指定 target 對應的檢查項；未在目標集的章節（README / doc / architecture / 共通中的 LICENSE）視為跳過，且**不得讀取未指定目標的檔案**以避免誤判覆寫。
 
 完成前，請驗證：
 
