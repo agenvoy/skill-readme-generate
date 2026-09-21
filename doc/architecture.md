@@ -7,46 +7,54 @@
 ```mermaid
 graph TB
     User[User] -->|/readme-generate| SKILL[SKILL.md<br/>Orchestration]
-    SKILL --> Parser[Argument Parser<br/>private / LICENSE_TYPE / REPO_PATH]
+    SKILL --> Parser[Argument Parser<br/>private / usage / LICENSE_TYPE<br/>REPO_PATH / --only]
     SKILL --> Config[setup_config.py<br/>Author Config]
     SKILL --> Analyze[analyze_project.py<br/>Source Analysis]
     Config --> JSON[~/.skill-readme-generate.json]
-    Analyze --> Data[Language / Types / Functions<br/>Deps / File List]
-    Parser --> Generator[Generator<br/>ZH first → EN translation]
+    Parser --> Target[Target Set<br/>readme / doc / architecture]
+    Analyze --> Data[Language / Types / Functions<br/>Dependencies / Files]
+    Examples[scripts/examples<br/>Blueprints] --> Generator
+    Licenses[scripts/licenses<br/>License Templates] --> Generator
+    Target --> Generator[Generator<br/>Chinese First → English]
     Data --> Generator
     JSON --> Generator
-    Generator --> Output[README.md<br/>doc/README.zh.md<br/>doc/doc.md / doc.zh.md<br/>doc/architecture.md / architecture.zh.md<br/>LICENSE]
+    Generator --> Output[README.md / doc/README.zh.md<br/>doc/doc.md / doc.zh.md<br/>doc/architecture.md / architecture.zh.md<br/>LICENSE]
 ```
 
 ## Module: SKILL.md (Orchestration)
 
-Defines the workflow, section ordering, and validation checklist that Claude must strictly follow when executing the skill. Contains no executable code — it constrains LLM behavior through prompt instructions.
+Defines the workflow, section ordering, and validation checklist Claude follows when executing the skill. Contains no executable code; it constrains LLM behavior through prompt instructions.
 
 ```mermaid
 graph TB
     subgraph SKILL["SKILL.md"]
-        Step0[Step 0<br/>Author Config Check] --> Step1[Step 1<br/>Argument Parsing]
-        Step1 --> Step2[Step 2<br/>Project Analysis]
-        Step2 --> Step3[Step 3<br/>Feature Extraction<br/>3–5 items]
-        Step3 --> Step4[Step 4<br/>ZH Section Generation]
-        Step4 --> Step5[Step 5<br/>EN Translation]
-        Step5 --> Step6[Step 6<br/>LICENSE Generation]
-        Step6 --> Step7[Step 7<br/>Validation Checklist]
+        Step0[0 Author Config] --> Step1[1 Parse Arguments<br/>Resolve Target Set]
+        Step1 --> Step2[2 Analyze Project]
+        Step2 --> Step3[3 Extract Params<br/>owner / repo / year]
+        Step3 --> Step4[4 Review Existing Docs]
+        Step4 --> Step5[5 Extract 3–5 Features<br/>skipped in usage]
+        Step5 --> Step6[6 Generate readme]
+        Step6 --> Step7[7 Generate doc]
+        Step7 --> Step8[8 Generate architecture]
+        Step8 --> Step9[9 LICENSE<br/>full run, non-usage only]
+        Step9 --> Step10[10 Validation Checklist]
     end
     SlashCmd[/readme-generate/] --> SKILL
-    SKILL --> Files[Six Output Files + LICENSE]
+    SKILL --> Files[Target Files + LICENSE]
 ```
+
+Each generation step runs only when its target is in the target set; files outside the set are neither read nor overwritten.
 
 ## Module: setup_config.py (Author Config)
 
-Provides three modes: interactive creation, non-interactive write, and existence check. The config is stored as JSON at `~/.skill-readme-generate.json` with all four fields required.
+Provides interactive creation, non-interactive write, and existence check. The config is stored as UTF-8 JSON at `~/.skill-readme-generate.json`, and all four fields must be non-empty strings.
 
 ```mermaid
 graph TB
     subgraph Config["setup_config.py"]
-        Main[main<br/>Subcommand Dispatch] --> Check[cmd_check<br/>Load + Validate]
+        Main[main<br/>Subcommand Dispatch] --> Check[cmd_check<br/>Load and Validate]
         Main --> Write[cmd_write<br/>Four-Arg Write]
-        Main --> Default[cmd_default<br/>Interactive or Print]
+        Main --> Default[cmd_default<br/>Prompt or Print]
         Check --> Load[load_config<br/>Read + Field Validation]
         Default --> Load
         Default --> Prompt[prompt_interactive<br/>TTY input]
@@ -58,26 +66,28 @@ graph TB
     SKILL[SKILL.md Step 0] -->|check / write| Main
 ```
 
-**Inputs / Outputs**:
+**Input / Output**:
 
-| Subcommand | stdin | stdout | exit |
-|------------|-------|--------|------|
-| `check` | - | JSON or MISSING | 0 / 1 |
-| `write` | - | JSON | 0 / 2 |
-| default | TTY | JSON | 0 / 2 |
+| Subcommand | stdin | stdout | stderr | Exit |
+|------------|-------|--------|--------|------|
+| `check` | - | JSON | `MISSING` when absent | 0 / 1 |
+| `write` | - | JSON | Save path or error | 0 / 2 |
+| default | TTY | JSON | Prompts | 0 / 2 |
 
 ## Module: analyze_project.py (Source Analysis)
 
-After auto-detecting the primary language, dispatches to the corresponding extractor to pull structural information. Output is a unified `ProjectAnalysis` dataclass serialized as JSON.
+Detects the primary language, dispatches to the matching extractor, and serializes a unified `ProjectAnalysis` to JSON.
 
 ```mermaid
 graph TB
     subgraph Analyzer["analyze_project.py"]
-        Entry[analyze_project<br/>Entry Point] --> Detect[detect_language<br/>Extensions + Indicator Files]
-        Detect -->|go| Go[extract_go_info<br/>Parse go.mod<br/>type / func]
-        Detect -->|python| Py[extract_python_info<br/>Parse pyproject.toml<br/>class / def]
-        Detect -->|js/ts| JS[extract_js_ts_info<br/>Parse package.json<br/>export function / class]
-        Detect -->|other| Fallback[List Files Only]
+        Entry[analyze_project<br/>Entry] --> Detect[detect_language]
+        Detect --> Indicators[_detect_by_indicators<br/>Indicator Files]
+        Detect --> Ext[_detect_by_extensions<br/>Extension Count]
+        Detect -->|go| Go[extract_go_info<br/>go.mod / type / func]
+        Detect -->|python| Py[extract_python_info<br/>pyproject.toml / AST]
+        Detect -->|javascript / typescript| JS[extract_js_ts_info<br/>package.json / export]
+        Detect -->|other| Fallback[_list_generic_files<br/>File List Only]
         Go --> Result[ProjectAnalysis]
         Py --> Result
         JS --> Result
@@ -88,7 +98,7 @@ graph TB
     Serialize -->|stdout JSON| SKILL
 ```
 
-**Dataclasses**:
+**Data Classes**:
 
 ```mermaid
 classDiagram
@@ -122,9 +132,11 @@ classDiagram
     ProjectAnalysis --> FunctionInfo
 ```
 
+`entry_points` is a data class field but is not included in the output JSON.
+
 ## Data Flow
 
-Complete flow of a single `/readme-generate` invocation:
+Full flow of a single `/readme-generate` invocation:
 
 ```mermaid
 sequenceDiagram
@@ -133,7 +145,7 @@ sequenceDiagram
     participant Skill as SKILL.md
     participant Config as setup_config.py
     participant Analyze as analyze_project.py
-    participant FS as Filesystem
+    participant FS as File System
 
     User->>Claude: /readme-generate [args]
     Claude->>Skill: Load skill definition
@@ -148,16 +160,20 @@ sequenceDiagram
     else Config complete
         Config-->>Skill: JSON
     end
-    Skill->>Skill: Parse PRIVATE_MODE / LICENSE_TYPE / REPO_PATH
+    Skill->>Skill: Parse arguments and resolve target set
     Skill->>Analyze: analyze_project.py <path>
-    Analyze->>FS: Recursively scan source files
+    Analyze->>FS: Recursively scan sources
     Analyze-->>Skill: ProjectAnalysis JSON
-    Skill->>Skill: Extract 3–5 features
-    Skill->>FS: Write doc/README.zh.md
-    Skill->>FS: Write README.md
-    Skill->>FS: Write doc/doc.zh.md / doc.md
-    Skill->>FS: Write doc/architecture.zh.md / architecture.md
-    alt Missing LICENSE or explicit type
+    opt readme ∈ target set
+        Skill->>FS: Write doc/README.zh.md → README.md
+    end
+    opt doc ∈ target set
+        Skill->>FS: Write doc/doc.zh.md → doc/doc.md
+    end
+    opt architecture ∈ target set
+        Skill->>FS: Write doc/architecture.zh.md → doc/architecture.md
+    end
+    opt No --only, not usage, and (type given or no LICENSE)
         Skill->>FS: Write LICENSE
     end
     Skill-->>User: Completion notice
@@ -165,26 +181,34 @@ sequenceDiagram
 
 ## Argument Parsing State Machine
 
-Detection and classification of the three optional arguments:
+Argument detection and target set resolution:
 
 ```mermaid
 stateDiagram-v2
     [*] --> Token: Read next token
-    Token --> PrivateCheck: Token present
-    Token --> Done: No token
-    PrivateCheck --> SetPrivate: Matches private (case-insensitive)
-    PrivateCheck --> RepoCheck: No match
+    Token --> OnlyCheck: Token present
+    Token --> Resolve: No token
+    OnlyCheck --> SetOnly: --only or --only=
+    OnlyCheck --> PrivateCheck: No match
+    PrivateCheck --> SetPrivate: private
+    PrivateCheck --> UsageCheck: No match
+    UsageCheck --> SetUsage: usage
+    UsageCheck --> RepoCheck: No match
     RepoCheck --> SetRepo: Contains github.com/
     RepoCheck --> LicenseCheck: No match
-    LicenseCheck --> SetLicense: Matches known license alias
+    LicenseCheck --> SetLicense: Known license alias
     LicenseCheck --> Ignore: No match
+    SetOnly --> Token
     SetPrivate --> Token
+    SetUsage --> Token
     SetRepo --> Token
     SetLicense --> Token
     Ignore --> Token
-    Done --> Proprietary: LICENSE_TYPE == proprietary
-    Done --> Finalize: otherwise
-    Proprietary --> SetPrivate
-    SetPrivate --> Finalize
-    Finalize --> [*]
+    Resolve --> UsageTarget: USAGE_MODE
+    Resolve --> OnlyTarget: ONLY_TARGETS non-empty
+    Resolve --> FullTarget: Otherwise
+    UsageTarget --> Finalize: target = readme, ignore LICENSE_TYPE
+    OnlyTarget --> Finalize: target = given, ignore LICENSE_TYPE
+    FullTarget --> Finalize: target = all + LICENSE
+    Finalize --> [*]: proprietary implies private
 ```

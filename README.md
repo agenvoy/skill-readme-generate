@@ -14,7 +14,7 @@
 
 ***
 
-> A Claude Code skill that generates six bilingual docs from source analysis, with private mode, seven licenses, and persistent author config
+> A Claude Code skill with six-file bilingual output, selective `--only` regeneration, and a usage tutorial mode
 
 ## Table of Contents
 
@@ -27,10 +27,10 @@
 > Install to `~/.claude/skills/readme-generate/` · [Documentation](./doc/doc.md)
 
 - **Six-File Bilingual Output** — One run produces README, doc, and architecture in both English and Traditional Chinese, authored in Chinese first to keep terminology consistent across translations.
-- **Source-Code-Driven Analysis** — `analyze_project.py` parses exported types, function signatures, and dependencies for Python (AST), Go, JS, and TS; PHP and Swift are detected at file level only.
-- **Three Orthogonal Parameters** — `private`, `LICENSE_TYPE`, and `REPO_PATH` compose freely in any order, defaulting to MIT when no license is specified.
-- **Persistent Author Config** — `setup_config.py` maintains author, email, and GitHub identity in `~/.skill-readme-generate.json`, prompted once interactively then reused across runs.
-- **Seven Built-In License Templates** — MIT, Apache-2.0, GPL-3.0, BSD-3-Clause, ISC, Unlicense, and Proprietary templates are embedded, with Proprietary implying private mode.
+- **Source-Code-Driven Analysis** — `analyze_project.py` extracts exported types, function signatures, and dependencies for Python (AST), Go, JS, and TS; PHP and Swift are detected at file level only.
+- **Composable Generation Modes** — `private`, `usage`, `LICENSE_TYPE`, `REPO_PATH`, and `--only` combine in any order, regenerating only the chosen file sets without touching other docs or the LICENSE.
+- **Persistent Author Config** — `setup_config.py` keeps author, email, and GitHub identity in `~/.skill-readme-generate.json`, created once and reused across projects.
+- **Seven Built-In License Templates** — MIT, Apache-2.0, GPL-3.0, BSD-3-Clause, ISC, Unlicense, and Proprietary ship with the skill, defaulting to MIT when no license exists or is specified.
 
 ## Architecture
 
@@ -42,8 +42,9 @@ graph TB
     SKILL --> Config[setup_config.py<br/>Author Config]
     SKILL --> Analyze[analyze_project.py<br/>Source Analysis]
     Config --> JSON[~/.skill-readme-generate.json]
-    Analyze --> Output[Six Bilingual Files<br/>+ LICENSE]
-    SKILL --> Output
+    SKILL --> Target[Target Set<br/>readme / doc / architecture]
+    Analyze --> Output[Bilingual Docs<br/>+ LICENSE]
+    Target --> Output
 ```
 
 ## License

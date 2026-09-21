@@ -10,7 +10,7 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 ## 指令語法
 
 ```
-/readme-generate [private] [LICENSE_TYPE] [REPO_PATH] [--only <targets>]
+/readme-generate [private] [usage] [LICENSE_TYPE] [REPO_PATH] [--only <targets>]
 ```
 
 ### 參數（全部為選填）
@@ -18,9 +18,10 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 | 參數 | 格式 | 範例 | 行為 |
 |-----------|--------|---------|----------|
 | `private` | 關鍵字 | `private` | 生成時不包含徽章和星標歷史 |
-| `LICENSE_TYPE` | 授權識別碼 | `MIT`、`Apache-2.0` | 生成 LICENSE 檔案 |
+| `usage` | 關鍵字 | `usage` | 僅生成 `README.md` + `doc/README.zh.md`，內容改為純使用說明教學（見下方「usage 模式」），不含徽章/星標/授權/作者區段，不觸碰 doc/architecture/LICENSE |
+| `LICENSE_TYPE` | 授權識別碼 | `MIT`、`Apache-2.0` | 生成 LICENSE 檔案（`usage` 模式下忽略） |
 | `REPO_PATH` | `github.com/{owner}/{repo}` | `github.com/foo/bar` | 覆蓋預設的擁有者/儲存庫 |
-| `--only <targets>` | 逗號分隔的目標清單 | `--only readme`、`--only doc,architecture` | 僅重新生成指定檔案集，保留其他檔案與 LICENSE 不動 |
+| `--only <targets>` | 逗號分隔的目標清單 | `--only readme`、`--only doc,architecture` | 僅重新生成指定檔案集，保留其他檔案與 LICENSE 不動（`usage` 模式下無意義，因已固定為 readme 兩檔） |
 
 ### `--only` 目標對應
 
@@ -43,6 +44,7 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 | 模式 | 偵測為 |
 |---------|-------------|
 | `private`（不區分大小寫） | `PRIVATE_MODE` 旗標 |
+| `usage`（不區分大小寫） | `USAGE_MODE` 旗標；強制 `ONLY_TARGETS = readme`，忽略 `LICENSE_TYPE` |
 | 包含 `github.com/` | `REPO_PATH` |
 | 符合已知授權類型（不區分大小寫） | `LICENSE_TYPE` |
 | `--only <targets>` 或 `--only=<targets>` | `ONLY_TARGETS`（逗號分隔，大小寫不敏感） |
@@ -73,6 +75,8 @@ description: 從原始碼分析自動生成雙語 README。當使用者請求為
 /readme-generate --only README                    # 只重生成 README.md + doc/README.zh.md
 /readme-generate --only doc,architecture          # 只重生成 doc 與 architecture 雙語四檔
 /readme-generate private --only README            # 僅 README + 套用 private 模式（不動 LICENSE）
+/readme-generate usage                            # 僅生成 README.md + doc/README.zh.md，純使用說明教學版本
+/readme-generate usage github.com/foo/bar         # usage 模式 + 自訂儲存庫路徑
 ```
 
 ---
@@ -117,10 +121,10 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py check
 
 | 欄位 | 提示文字 | 範例 |
 |------|----------|------|
-| `author_name` | 作者姓名（顯示於 README Author 區段） | `張三 John Doe` |
+| `author_name` | 作者姓名（顯示於版權頁尾與 LICENSE） | `張三 John Doe` |
 | `author_email` | 聯絡 Email | `dev@example.com` |
 | `author_url` | 個人連結（LinkedIn、GitHub、個人網站皆可） | `https://linkedin.com/in/johndoe` |
-| `github_owner` | GitHub 使用者名稱（用於預設 `{owner}` 與頭像） | `johndoe` |
+| `github_owner` | GitHub 使用者名稱（用於預設 `{owner}`） | `johndoe` |
 
 **Step 0.3：寫入設定**
 
@@ -177,7 +181,8 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
 | `{author_name}` | `~/.skill-readme-generate.json` 的 `author_name` | `張三 John Doe` |
 | `{author_email}` | `~/.skill-readme-generate.json` 的 `author_email` | `dev@example.com` |
 | `{author_url}` | `~/.skill-readme-generate.json` 的 `author_url` | `https://linkedin.com/in/johndoe` |
-| `{avatar_url}` | `https://github.com/{owner}.png` | `https://github.com/johndoe.png` |
+| `{date}` | 生成當日 `date +%Y-%m-%d`（Author 區段 contrib.rocks 的 `cache_bust`） | `2026-09-16` |
+| `{coverage_branch}` | `.github/workflows/*` 中上傳 coverage 的 workflow 的 `on.push.branches`；無 CI 時用 `git symbolic-ref --short refs/remotes/origin/HEAD` 的 branch | `develop` |
 | `{repo}` | `REPO_PATH` 覆蓋或資料夾名稱或 `git remote get-url origin` | `go-scheduler` |
 | `{package}` | `package.json` name、`go.mod` module、`pyproject.toml` name | `@aspect/utils` |
 | `{year}` | 現有 README 年份或 `git log --reverse --format=%ai \| head -1` 或當前年份 | `2024` |
@@ -190,23 +195,25 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
 
 ```
 0.  作者設定  →  `scripts/setup_config.py check` 讀取 ~/.skill-readme-generate.json；缺失則 AskUserQuestion + `write` 子指令建立
-1.  解析      →  從指令中提取 PRIVATE_MODE、LICENSE_TYPE、REPO_PATH、ONLY_TARGETS
-                 - 若 ONLY_TARGETS 非空 → `LICENSE_TYPE` 強制忽略；目標集 = 使用者指定
-                 - 若 ONLY_TARGETS 空 → 目標集 = {readme, doc, architecture}
+1.  解析      →  從指令中提取 PRIVATE_MODE、USAGE_MODE、LICENSE_TYPE、REPO_PATH、ONLY_TARGETS
+                 - 若 USAGE_MODE → 目標集 = {readme}，`LICENSE_TYPE` 強制忽略，`ONLY_TARGETS` 輸入被覆蓋
+                 - 否則若 ONLY_TARGETS 非空 → `LICENSE_TYPE` 強制忽略；目標集 = 使用者指定
+                 - 否則 → 目標集 = {readme, doc, architecture}
 2.  分析      →  在目標專案上執行 analyze_project.py
 3.  提取      →  從專案取得 {repo}、{package}、{year}（或使用 REPO_PATH 覆蓋）
 4.  檢視      →  檢查現有文件、LICENSE、範例
-5.  選特色    →  從分析結果中提煉出所有精妙且具代表性的專案特色
-6.  生成 readme        →  僅當 `readme` ∈ 目標集：先建立 doc/README.zh.md，再翻譯為 README.md
-7.  生成 doc           →  僅當 `doc` ∈ 目標集：先建立 doc/doc.zh.md，再翻譯為 doc/doc.md
-8.  生成 architecture  →  僅當 `architecture` ∈ 目標集：先建立 doc/architecture.zh.md，再翻譯為 doc/architecture.md
-9.  授權      →  僅當 ONLY_TARGETS 為空時執行：
+5.  選特色    →  USAGE_MODE 時跳過（usage 模式不寫功能特點區段）；否則從分析結果中提煉出所有精妙且具代表性的專案特色
+6.  生成 readme        →  僅當 `readme` ∈ 目標集：
+                 - USAGE_MODE → 依「usage 模式內容結構」生成，先建立 doc/README.zh.md 再翻譯為 README.md
+                 - 否則 → 依一般 README 區段順序生成
+7.  生成 doc           →  僅當 `doc` ∈ 目標集（USAGE_MODE 時必為空集，跳過）：先建立 doc/doc.zh.md，再翻譯為 doc/doc.md
+8.  生成 architecture  →  僅當 `architecture` ∈ 目標集（USAGE_MODE 時必為空集，跳過）：先建立 doc/architecture.zh.md，再翻譯為 doc/architecture.md
+9.  授權      →  僅當 ONLY_TARGETS 為空且非 USAGE_MODE 時執行：
                  - 若指定 LICENSE_TYPE → 使用指定類型
                  - 若無 LICENSE 檔案且未指定 → 預設生成 MIT LICENSE
-                 - 有 ONLY_TARGETS 時完全跳過，不讀取、不覆寫 LICENSE
-10. 驗證      →  僅驗證目標集對應的檔案；未在目標集的檔案視為「未觸碰」跳過
+                 - 有 ONLY_TARGETS 或 USAGE_MODE 時完全跳過，不讀取、不覆寫 LICENSE
+10. 驗證      →  USAGE_MODE 依「usage 模式驗證清單」；否則僅驗證目標集對應的檔案，未在目標集的檔案視為「未觸碰」跳過
 11. 儲存      →  README.md 寫入專案根目錄；其餘檔案寫入 doc/ 子目錄（自動建立）
-```
 ```
 
 ---
@@ -214,7 +221,7 @@ python3 ~/.claude/skills/readme-generate/scripts/setup_config.py
 ## 步驟 1：分析專案
 
 ```bash
-python3 /mnt/skills/user/readme-generator/scripts/analyze_project.py /path/to/project
+python3 ~/.claude/skills/readme-generate/scripts/analyze_project.py /path/to/project
 ```
 
 輸出：包含語言、名稱、版本、類型、函式、相依性的 JSON。
@@ -241,7 +248,7 @@ git log --reverse --format=%ai | head -1 | cut -d'-' -f1
 jq -r '.name' package.json
 
 # 取得模組名稱（Go）
-grep '^module' go.mod | awk '{print $2}'
+sed -n 's/^module //p' go.mod
 ```
 
 ---
@@ -425,7 +432,7 @@ A [tech] [what it is] with [key feature 1], [key feature 2], and [key feature 3]
 ```markdown
 ## 功能特點
 
-> `go install github.com/{owner}/{repo}/cmd/cli@latest` · [完整文件](./doc/README.zh.md)
+> `go install github.com/{owner}/{repo}/cmd/cli@latest` · [完整文件](./doc.zh.md)
 
 - **特色標題 1**（≤15 字）— 一句話簡述此特色的核心價值。
 - **特色標題 2** — 一句話簡述。
@@ -510,27 +517,25 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 本專案採用 [MIT LICENSE](LICENSE)。
 ```
 
-### 順序 8：作者區段（從 `~/.skill-readme-generate.json` 套用，僅公開模式）
+### 順序 8：作者區段（僅公開模式）
 
 **在私有模式中完全跳過（順序 9 版權頁尾在私有模式中也不含 `{author_name}`／`{author_url}`，僅顯示 `©️ {year}`）。**
 
-**在兩個檔案中使用此格式，並以 `~/.skill-readme-generate.json` 的值替換 placeholder：**
+**兩個檔案使用完全相同的內容（不翻譯）：**
 ```markdown
 ## Author
 
-<img src="https://github.com/{owner}.png" align="left" width="96" height="96" style="margin-right: 0.5rem;">
+Just [open an issue](https://github.com/{owner}/{repo}/issues/new) to share an idea.
 
-<h4 style="padding-top: 0">{author_name}</h4>
-
-<a href="mailto:{author_email}">{author_email}</a><br>
-<a href="{author_url}">{author_url}</a>
+<a href="https://github.com/{owner}/{repo}/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo={owner}/{repo}&cache_bust={date}" alt="{repo} contributors" />
+</a>
 ```
 
 **規則：**
-- 頭像使用 `https://github.com/{owner}.png`（GitHub 自動產生）
-- Email 與個人連結皆以**純文字超連結**呈現於姓名下方，不使用圖示
-- 兩行之間以 `<br>` 換行，避免 markdown list 或段落間距
-- ZH 與 EN 版本使用相同區段（`## Author` 不翻譯，與業界慣例一致）
+- issue 與 contributors 連結一律指向**本專案**的 `{owner}/{repo}`，不得沿用其他 repo 的網址
+- `cache_bust` 填生成當日 `{date}`：contrib.rocks 會快取圖片，每次重生成換日期才會刷新貢獻者頭像
+- `{owner}/{repo}` 與徽章使用的值一致（`REPO_PATH` 覆蓋時一併套用）
 
 ### 順序 9：版權頁尾
 
@@ -554,7 +559,7 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 
 **所有徽章使用 HTML `<a><img></a>` 格式，加上 `include_prereleases&style=for-the-badge`。**
 
-**Go / Node.js / PHP 各自的徽章集為完全自足（release + license 皆取自該語言生態圈自身來源），不再套用「通用」GitHub tag/license 徽章。其餘語言（Python、Swift…）沒有專屬 release/license 來源時，回退套用「通用」區塊。**
+**Go / Node.js / PHP 各自的徽章集為完全自足（release + license 皆取自該語言生態圈自身來源），不再套用「通用」GitHub tag/license 徽章。其餘語言（Python、Swift...）沒有專屬 release/license 來源時，回退套用「通用」區塊。**
 
 ### Go
 
@@ -570,7 +575,7 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 <a href="https://pkg.go.dev/github.com/{owner}/{repo}"><img src="https://img.shields.io/badge/GO-REFERENCE-blue?include_prereleases&style=for-the-badge" alt="Go Reference"></a>
 <a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
-<a href="https://app.codecov.io/github/{owner}/{repo}/tree/master"><img src="https://img.shields.io/codecov/c/github/{owner}/{repo}/master?include_prereleases&style=for-the-badge" alt="Coverage"></a>
+<a href="https://app.codecov.io/github/{owner}/{repo}/tree/{coverage_branch}"><img src="https://img.shields.io/codecov/c/github/{owner}/{repo}/{coverage_branch}?include_prereleases&style=for-the-badge" alt="Coverage"></a>
 ```
 
 **Application：**
@@ -603,8 +608,8 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 
 ### 通用（Go / Node.js / PHP 以外的語言，在公開模式中包含）
 ```html
-<a href="LICENSE"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Version"></a>
-<a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
+<a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Version"></a>
+<a href="LICENSE"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
 ```
 
 ---
@@ -833,10 +838,10 @@ cp .env.example .env
 
 ### Built-in Tools
 
-| Tool | Parameters | Description |
-|------|------------|-------------|
-| `read_file` | `path` | Read file content at the specified path |
-| `write_file` | `path`, `content` | Write or create a file |
+| Tool | Description |
+|------|-------------|
+| `read_file` | Read file content |
+| `write_file` | Write or create a file |
 ```
 
 **函式庫 API 參考範例：**
@@ -908,6 +913,53 @@ Creates a skill scanner that concurrently scans all configured paths.
 
 > `go install github.com/{owner}/{repo}/cmd/cli@latest` · [Documentation](./doc/doc.md)
 ```
+
+---
+
+## usage 模式（`/readme-generate usage`）
+
+**目的：只需要一份純教學向的使用說明，不需要行銷向 README（無封面、標語、徽章、星標歷史、授權、作者）。輸出路徑仍是 `README.md` + `doc/README.zh.md`，但內容結構改採「doc.md 教學骨架」。**
+
+### 與一般模式的差異
+
+| 內容 | 一般 README 模式 | usage 模式 |
+|------|------|------|
+| 輸出檔案 | `README.md` + `doc/README.zh.md` | 同左（唯一輸出） |
+| 封面 / 標語 / 徽章 / 星標歷史 | ✓ | **省略** |
+| 功能特點（純文字特色） | ✓ | **省略** |
+| 授權 / 作者區段 | ✓（公開模式） | **省略**（不讀取、不寫入 LICENSE） |
+| 前置需求 / 安裝 / 設定 / 使用方式 / 參考 | 移至 `doc.md`（本次不生成） | **就是本文的主體** |
+| `doc/doc.md`、`doc/architecture.md`、LICENSE | 依 `--only` 決定 | **完全不觸碰** |
+
+### usage 模式區段順序（強制性）
+
+| 順序 | 區段 | 必要 | 內容規則 |
+|-------|---------|----------|------|
+| 0 | LLM 生成通知 + `***` | **是** | 與一般模式順序 0 完全相同格式 |
+| 1 | 一句話描述 | **是** | 與一般模式順序 3 相同格式（`> A [tech] [what it is] with ...`） |
+| 2 | 目錄 | **是** | 依本表順序 3–7 實際存在的區段動態生成 |
+| 3 | 前置需求 | **是** | 內容規則同 doc.md 順序 1 |
+| 4 | 安裝 | **是** | 內容規則同 doc.md 順序 2 |
+| 5 | 設定 | 條件性 | 內容規則同 doc.md 順序 3（僅專案有環境變數/設定檔時包含） |
+| 6 | 使用方式 | **是** | 內容規則同 doc.md 順序 4（Basic → Advanced） |
+| 7 | 參考 | **是** | 內容規則同 doc.md 順序 5（依專案類型選擇 CLI/API/介面/設定參考標題） |
+| 8 | 版權頁尾 | 否 | 固定用公開模式格式：`©️ {year} [{author_name}]({author_url})`（僅頁尾附作者連結，本模式不含獨立的作者區段） |
+
+**規則：**
+- 完全套用 doc.md 生成規則中「順序 1–5」的內容細節（前置需求提取來源、安裝方式列舉、設定表格、使用範例的 Basic→Advanced、參考區段依專案類型的標題與內容），差異僅在於**寫入位置改為 `README.md` / `doc/README.zh.md`，且標題不含「Documentation / 技術文件」字樣、不含「返回 README」連結**（因為本身就是 README）
+- 目錄錨點規則、ZH-TW 翻譯慣例與一般模式相同
+- 若專案已存在 `README.md` / `doc/README.zh.md`，usage 模式**整份覆寫**為上述結構（不保留原本行銷向區段）
+
+### usage 模式驗證清單
+
+- [ ] `README.md`、`doc/README.zh.md` 已建立並儲存
+- [ ] 不含封面、標語、徽章、星標歷史、功能特點、授權、作者區段
+- [ ] 順序 0：LLM 生成通知 + `***`
+- [ ] 順序 1：一句話描述
+- [ ] 順序 2：目錄，錨點對應實際區段
+- [ ] 順序 3–7：前置需求／安裝／設定（如適用）／使用方式／參考，內容完整可執行
+- [ ] 順序 8：版權頁尾為 `©️ {year} [{author_name}]({author_url})`
+- [ ] 未產生／未修改 `doc/doc.md`、`doc/architecture.md`、`LICENSE`
 
 ---
 
@@ -1136,7 +1188,7 @@ For licensing inquiries, contact: {author_email}
 - [ ] **順序 5**：功能特點為 3–5 個 list items（`- **標題** — 說明`），純文字無 code snippet，無 h3 子區段
 - [ ] **順序 5**：安裝指令 + doc 連結以 blockquote 形式嵌入
 - [ ] **順序 7**：授權區段存在（僅公開模式；私有模式跳過）
-- [ ] **順序 8**：作者區段使用文字格式（姓名下方以 `<br>` 分隔的兩行純文字超連結）（僅公開模式；私有模式跳過）
+- [ ] **順序 8**：作者區段為 open-an-issue 句＋contrib.rocks 貢獻者圖，連結皆指向本專案 `{owner}/{repo}`，`cache_bust` 為當日日期（僅公開模式；私有模式跳過）
 - [ ] **無獨立的 Installation、Usage、API Reference 區段**
 
 ### doc（doc.md + doc.zh.md）

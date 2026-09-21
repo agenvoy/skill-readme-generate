@@ -7,39 +7,47 @@
 ```mermaid
 graph TB
     User[使用者] -->|/readme-generate| SKILL[SKILL.md<br/>流程協調]
-    SKILL --> Parser[參數解析<br/>private / LICENSE_TYPE / REPO_PATH]
+    SKILL --> Parser[參數解析<br/>private / usage / LICENSE_TYPE<br/>REPO_PATH / --only]
     SKILL --> Config[setup_config.py<br/>作者設定]
     SKILL --> Analyze[analyze_project.py<br/>原始碼分析]
     Config --> JSON[~/.skill-readme-generate.json]
+    Parser --> Target[目標集<br/>readme / doc / architecture]
     Analyze --> Data[語言 / 型別 / 函式<br/>相依 / 檔案清單]
-    Parser --> Generator[生成器<br/>中文先行 → 英文翻譯]
+    Examples[scripts/examples<br/>生成藍本] --> Generator
+    Licenses[scripts/licenses<br/>授權範本] --> Generator
+    Target --> Generator[生成器<br/>中文先行 → 英文翻譯]
     Data --> Generator
     JSON --> Generator
-    Generator --> Output[README.md<br/>doc/README.zh.md<br/>doc/doc.md / doc.zh.md<br/>doc/architecture.md / architecture.zh.md<br/>LICENSE]
+    Generator --> Output[README.md / doc/README.zh.md<br/>doc/doc.md / doc.zh.md<br/>doc/architecture.md / architecture.zh.md<br/>LICENSE]
 ```
 
 ## Module: SKILL.md（流程協調）
 
-定義 Claude 執行此 skill 時需嚴格遵守的工作流程、區段順序與驗證清單。本身不含執行碼，僅以提示詞約束 LLM 行為。
+定義 Claude 執行此 skill 時需遵守的工作流程、區段順序與驗證清單。本身不含執行碼，僅以提示詞約束 LLM 行為。
 
 ```mermaid
 graph TB
     subgraph SKILL["SKILL.md"]
-        Step0[Step 0<br/>作者設定檢查] --> Step1[Step 1<br/>參數解析]
-        Step1 --> Step2[Step 2<br/>專案分析]
-        Step2 --> Step3[Step 3<br/>特色提煉<br/>3–5 個]
-        Step3 --> Step4[Step 4<br/>ZH 區段生成]
-        Step4 --> Step5[Step 5<br/>EN 翻譯]
-        Step5 --> Step6[Step 6<br/>LICENSE 生成]
-        Step6 --> Step7[Step 7<br/>驗證清單]
+        Step0[0 作者設定] --> Step1[1 解析參數<br/>決定目標集]
+        Step1 --> Step2[2 分析專案]
+        Step2 --> Step3[3 提取參數<br/>owner / repo / year]
+        Step3 --> Step4[4 檢視既有文件]
+        Step4 --> Step5[5 提煉 3–5 特色<br/>usage 模式跳過]
+        Step5 --> Step6[6 生成 readme]
+        Step6 --> Step7[7 生成 doc]
+        Step7 --> Step8[8 生成 architecture]
+        Step8 --> Step9[9 LICENSE<br/>僅全量且非 usage]
+        Step9 --> Step10[10 驗證清單]
     end
     SlashCmd[/readme-generate/] --> SKILL
-    SKILL --> Files[六檔輸出 + LICENSE]
+    SKILL --> Files[目標集檔案 + LICENSE]
 ```
+
+每個生成步驟僅在對應 target 屬於目標集時執行，未在目標集的檔案不讀取、不覆寫。
 
 ## Module: setup_config.py（作者設定）
 
-提供三種模式：互動建立、非互動寫入、存在性檢查。設定以 JSON 格式存放於 `~/.skill-readme-generate.json`，四個欄位全部必填。
+提供互動建立、非互動寫入、存在性檢查三種模式。設定以 UTF-8 JSON 存放於 `~/.skill-readme-generate.json`，四個欄位皆須為非空字串。
 
 ```mermaid
 graph TB
@@ -60,24 +68,26 @@ graph TB
 
 **輸入／輸出**：
 
-| 子指令 | stdin | stdout | exit |
-|--------|-------|--------|------|
-| `check` | - | JSON 或 MISSING | 0 / 1 |
-| `write` | - | JSON | 0 / 2 |
-| 預設 | TTY | JSON | 0 / 2 |
+| 子指令 | stdin | stdout | stderr | exit |
+|--------|-------|--------|--------|------|
+| `check` | - | JSON | 缺失時 `MISSING` | 0 / 1 |
+| `write` | - | JSON | 儲存路徑或錯誤 | 0 / 2 |
+| 預設 | TTY | JSON | 提示文字 | 0 / 2 |
 
 ## Module: analyze_project.py（原始碼分析）
 
-自動偵測主要語言後，依語言別調用對應 extractor 提取結構資訊。輸出統一的 `ProjectAnalysis` 資料類別序列化為 JSON。
+偵測主要語言後調用對應 extractor 提取結構資訊，輸出統一的 `ProjectAnalysis` 序列化 JSON。
 
 ```mermaid
 graph TB
     subgraph Analyzer["analyze_project.py"]
-        Entry[analyze_project<br/>入口] --> Detect[detect_language<br/>副檔名 + 指標檔]
-        Detect -->|go| Go[extract_go_info<br/>解析 go.mod<br/>type / func]
-        Detect -->|python| Py[extract_python_info<br/>解析 pyproject.toml<br/>class / def]
-        Detect -->|js/ts| JS[extract_js_ts_info<br/>解析 package.json<br/>export function / class]
-        Detect -->|其他| Fallback[列出檔案清單]
+        Entry[analyze_project<br/>入口] --> Detect[detect_language]
+        Detect --> Indicators[_detect_by_indicators<br/>指標檔]
+        Detect --> Ext[_detect_by_extensions<br/>副檔名計數]
+        Detect -->|go| Go[extract_go_info<br/>go.mod / type / func]
+        Detect -->|python| Py[extract_python_info<br/>pyproject.toml / AST]
+        Detect -->|javascript / typescript| JS[extract_js_ts_info<br/>package.json / export]
+        Detect -->|其他| Fallback[_list_generic_files<br/>僅檔案清單]
         Go --> Result[ProjectAnalysis]
         Py --> Result
         JS --> Result
@@ -122,6 +132,8 @@ classDiagram
     ProjectAnalysis --> FunctionInfo
 ```
 
+`entry_points` 為資料類別欄位，但不包含在輸出 JSON 中。
+
 ## 資料流
 
 單次 `/readme-generate` 呼叫的完整流程：
@@ -148,16 +160,20 @@ sequenceDiagram
     else 設定完整
         Config-->>Skill: JSON
     end
-    Skill->>Skill: 解析 PRIVATE_MODE / LICENSE_TYPE / REPO_PATH
+    Skill->>Skill: 解析參數並決定目標集
     Skill->>Analyze: analyze_project.py <path>
     Analyze->>FS: 遞迴掃描原始檔
     Analyze-->>Skill: ProjectAnalysis JSON
-    Skill->>Skill: 提煉 3–5 特色
-    Skill->>FS: 寫入 doc/README.zh.md
-    Skill->>FS: 寫入 README.md
-    Skill->>FS: 寫入 doc/doc.zh.md / doc.md
-    Skill->>FS: 寫入 doc/architecture.zh.md / architecture.md
-    alt 無 LICENSE 或指定類型
+    opt readme ∈ 目標集
+        Skill->>FS: 寫入 doc/README.zh.md → README.md
+    end
+    opt doc ∈ 目標集
+        Skill->>FS: 寫入 doc/doc.zh.md → doc/doc.md
+    end
+    opt architecture ∈ 目標集
+        Skill->>FS: 寫入 doc/architecture.zh.md → doc/architecture.md
+    end
+    opt 無 --only 且非 usage，且（指定類型或無 LICENSE）
         Skill->>FS: 寫入 LICENSE
     end
     Skill-->>User: 完成通知
@@ -165,26 +181,34 @@ sequenceDiagram
 
 ## 參數解析狀態機
 
-三個選填參數的偵測與分類：
+參數偵測與目標集決定：
 
 ```mermaid
 stateDiagram-v2
     [*] --> Token: 讀取下一個 token
-    Token --> PrivateCheck: token 存在
-    Token --> Done: 無 token
-    PrivateCheck --> SetPrivate: 符合 private（不區分大小寫）
-    PrivateCheck --> RepoCheck: 不符
+    Token --> OnlyCheck: token 存在
+    Token --> Resolve: 無 token
+    OnlyCheck --> SetOnly: --only 或 --only=
+    OnlyCheck --> PrivateCheck: 不符
+    PrivateCheck --> SetPrivate: private
+    PrivateCheck --> UsageCheck: 不符
+    UsageCheck --> SetUsage: usage
+    UsageCheck --> RepoCheck: 不符
     RepoCheck --> SetRepo: 含 github.com/
     RepoCheck --> LicenseCheck: 不符
-    LicenseCheck --> SetLicense: 符合已知授權別名
+    LicenseCheck --> SetLicense: 符合授權別名
     LicenseCheck --> Ignore: 全部不符
+    SetOnly --> Token
     SetPrivate --> Token
+    SetUsage --> Token
     SetRepo --> Token
     SetLicense --> Token
     Ignore --> Token
-    Done --> Proprietary: LICENSE_TYPE == proprietary
-    Done --> Finalize: 其他
-    Proprietary --> SetPrivate
-    SetPrivate --> Finalize
-    Finalize --> [*]
+    Resolve --> UsageTarget: USAGE_MODE
+    Resolve --> OnlyTarget: ONLY_TARGETS 非空
+    Resolve --> FullTarget: 其他
+    UsageTarget --> Finalize: 目標集 = readme，忽略 LICENSE_TYPE
+    OnlyTarget --> Finalize: 目標集 = 指定值，忽略 LICENSE_TYPE
+    FullTarget --> Finalize: 目標集 = 全部 + LICENSE
+    Finalize --> [*]: proprietary 隱含 private
 ```

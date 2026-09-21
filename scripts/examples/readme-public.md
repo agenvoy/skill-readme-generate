@@ -17,7 +17,7 @@
 <a href="https://pkg.go.dev/github.com/{owner}/{repo}"><img src="https://img.shields.io/badge/GO-REFERENCE-blue?include_prereleases&style=for-the-badge" alt="Go Reference"></a>
 <a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
-<a href="https://app.codecov.io/github/{owner}/{repo}/tree/master"><img src="https://img.shields.io/codecov/c/github/{owner}/{repo}/master?include_prereleases&style=for-the-badge" alt="Coverage"></a>
+<a href="https://app.codecov.io/github/{owner}/{repo}/tree/{coverage_branch}"><img src="https://img.shields.io/codecov/c/github/{owner}/{repo}/{coverage_branch}?include_prereleases&style=for-the-badge" alt="Coverage"></a>
 </p>
 
 ***
@@ -57,12 +57,11 @@ graph TB
 
 ## Author
 
-<img src="https://github.com/{owner}.png" align="left" width="96" height="96" style="margin-right: 0.5rem;">
+Just [open an issue](https://github.com/{owner}/{repo}/issues/new) to share an idea.
 
-<h4 style="padding-top: 0">{author_name}</h4>
-
-<a href="mailto:{author_email}">{author_email}</a><br>
-<a href="{author_url}">{author_url}</a>
+<a href="https://github.com/{owner}/{repo}/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo={owner}/{repo}&cache_bust={date}" alt="{repo} contributors" />
+</a>
 
 ***
 
