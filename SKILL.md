@@ -173,7 +173,7 @@ python3 {skill_dir}/scripts/setup_config.py
 1.  解析      →  從指令中提取 PRIVATE_MODE、LICENSE_TYPE、REPO_PATH
 2.  分析      →  在目標專案上執行 analyze_project.py
 3.  提取      →  從專案取得 {repo}、{package}、{year}（或使用 REPO_PATH 覆蓋）
-4.  檢視      →  檢查現有文件、LICENSE、範例
+4.  檢視      →  檢查現有文件、LICENSE、範例；讀 `CHANGELOG.md`，「破壞性變更」全部項目逐項比對既有產物，命中即直接修改；回應中列出命中項與改動
 5.  選特色    →  從分析結果中提煉出所有精妙且具代表性的專案特色
 6.  生成 readme        →  先建立 doc/README.zh.md，再翻譯為 README.md
 7.  生成 doc           →  先建立 doc/doc.zh.md，再翻譯為 doc/doc.md
@@ -1137,6 +1137,7 @@ For licensing inquiries, contact: {author_email}
 - [ ] README 與 doc 的安裝指令一致
 - [ ] LICENSE 檔案存在且內容正確
 - [ ] [如果指定 REPO_PATH] 所有 URL 使用覆蓋的 owner/repo
+- [ ] 既有產物已依 `CHANGELOG.md`「破壞性變更」逐項比對，命中項已修改並列於回應
 
 ---
 
@@ -1155,3 +1156,14 @@ For licensing inquiries, contact: {author_email}
 2. 依專案類型調整 `doc-cli.md` 為藍本（函式庫 / 框架 / 設定驅動專案需改寫對應的「參考」區段）
 3. 按實際專案資料替換所有 `{...}` placeholder
 4. 依分析結果填入真實的功能特色、架構圖、程式碼範例
+
+---
+
+## CHANGELOG 維護
+
+修改本 skill 的 `SKILL.md` 或 `scripts/` 時，同一次改動內：
+
+1. 更新 `CHANGELOG.md` 的「最新改動」日期
+2. 本次含移除行為或需既有產物端處理的變更 → 寫進「破壞性變更」（一項一行、新者在上，寫清楚「既有產物中要找什麼 → 改成什麼」）；新增與修正不記錄。CHANGELOG 不寫版號
+
+**為何：** 讀完整規範（本檔＋`scripts/`）即得最新規範；CHANGELOG 只負責快速定位既有產物與最新規範的差異，命中即直接修改。只記破壞性變更，檔案不隨改動無限增長，落後多次的專案也能一次看完必須處理的項目；新增與修正的結果已在現行規範內，重生成即自動取得。
