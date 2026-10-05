@@ -181,6 +181,7 @@ python3 {skill_dir}/scripts/setup_config.py
 9.  授權      →  若指定 LICENSE_TYPE → 使用指定類型；若無 LICENSE 檔案且未指定 → 預設生成 MIT LICENSE
 10. 驗證      →  依「驗證檢查清單」逐項確認
 11. 儲存      →  README.md 寫入專案根目錄；其餘檔案寫入 doc/ 子目錄（自動建立）
+12. SEO       →  以專案根執行 `/seo-optimize`：GitHub repo description／topics／homepage（R9），有 `wiki-worker/` 一併檢查（見順序 3「搭配 `/seo-optimize`」）
 ```
 
 ---
@@ -332,7 +333,32 @@ sed -n 's/^module //p' go.mod
 
 ### 順序 3：簡短描述
 
-**使用固定格式，依據專案原始碼內容重新分析並生成，每次執行都必須更新。**
+**由 `/seo-optimize` 設計定位句，README、GitHub repo description 與 topics 共用同一份。** 每次執行都依下表取得：
+
+| 狀態 | 動作 |
+|---|---|
+| `<project_root>/.doc/seo-optimize/config.json` 或 `<project_root>/wiki-worker/.doc/seo-optimize/config.json` 有 `one_liner` | `one_liner.en`／`one_liner.zh` 逐字作為 EN／ZH 簡短描述 |
+| 無 `one_liner` | 先依下方固定格式生成；工作流程 Step 12 的 `/seo-optimize` 會依 R9 設計 `one_liner` 並替換這一行 |
+
+### 搭配 `/seo-optimize`（工作流程 Step 12，每次執行）
+
+README 寫完後，**不論 config 有無 `one_liner`**，都以專案根執行 `/seo-optimize <project_root>`：
+
+| 檢查 | 條件 |
+|---|---|
+| GitHub repo description、topics、homepage，與 README 順序 3（R9） | `git remote get-url origin` 為 `github.com`；不一致時由 `/seo-optimize` 以 `AskUserQuestion` 附完整 `gh repo edit` 指令詢問 |
+| `wiki-worker/` 文件站 | 專案存在 `wiki-worker/` |
+
+| `/seo-optimize` 狀態 | 動作 |
+|---|---|
+| `{skill_dir}/../seo-optimize/SKILL.md` 存在 | 直接執行 |
+| 不存在 | 以 `AskUserQuestion` 詢問是否從 `https://github.com/agenvoy/skill-seo-optimize` 下載；同意 → `git clone --depth 1 https://github.com/agenvoy/skill-seo-optimize {skill_dir}/../seo-optimize` 後執行；否決 → 略過，並在回應註明 repo description／topics 未檢查 |
+
+**為何每次都跑：** 只在缺 `one_liner` 時才呼叫，config 已有定位句的專案就永遠不會檢查 repo description／topics，README 與 GitHub repo 頁會各自漂移（go-rest-client 2026-10-06）。
+
+**為何：** 簡短描述同時是 GitHub repo 頁、套件登錄頁與 AI 摘要最常取用的一句話；各自撰寫會產生三種定位，搜尋面互相稀釋。
+
+固定格式（`/seo-optimize` 設計 `one_liner` 時也遵守；使用者否決下載時，依專案原始碼內容重新分析並以此格式生成）：
 
 格式（英文）：
 ```
@@ -1101,7 +1127,7 @@ For licensing inquiries, contact: {author_email}
 - [ ] **順序 0**：LLM 生成通知存在，後接 `***` 分隔線
 - [ ] **順序 1**：置中封面圖片（如有 logo；私有模式跳過）
 - [ ] **順序 2**：置中標語 + 置中 HTML 徽章（`style=for-the-badge`）+ `***`；私有模式**完全跳過**（非僅省略徽章）
-- [ ] **順序 3**：引用格式的一句話描述
+- [ ] **順序 3**：引用格式的一句話描述；有 `one_liner` 時與其逐字相同，且 EN 版與 `gh repo view` 的 description 一致（類型前綴如 `(module)` 除外）
 - [ ] **順序 4**：目錄存在且具有正確的錨點
 - [ ] **順序 5**：功能特點為 3–5 個 list items（`- **標題** — 說明`），純文字無 code snippet，無 h3 子區段
 - [ ] **順序 5**：安裝指令 + doc 連結以 blockquote 形式嵌入

@@ -2,10 +2,11 @@
 
 完整規範以 `SKILL.md` 與 `scripts/` 為準（＝最新規範）；本檔只用於快速定位專案既有 `README.md`、`doc/README.zh.md`、`doc/doc*.md`、`doc/architecture*.md` 與最新規範的差異，命中即直接修改專案。
 
-最新改動：2026-10-05
+最新改動：2026-10-06
 
 ## 破壞性變更
 
+- 順序 3 簡短描述不再自行生成：專案 `.doc/seo-optimize/config.json`（或 `wiki-worker/.doc/seo-optimize/config.json`）有 `one_liner` → README.md／中文 README 的順序 3 blockquote 改為逐字 `one_liner.en`／`one_liner.zh`；無則依順序 3 狀態表處理
 - `usage` 模式移除：以 `usage` 產出的 README（無功能特點、主體為前置需求／安裝／使用方式／參考）→ 依現行區段順序重寫，並補齊 `doc/doc*.md`、`doc/architecture*.md`、LICENSE
 - Author 區段改為 `Just [open an issue](https://github.com/{owner}/{repo}/issues/new) to share an idea.` ＋ contrib.rocks 貢獻者圖（`cache_bust={date}`）；舊格式（`github.com/{owner}.png` 或 `avatars.githubusercontent.com` 頭像、`<h4>` 姓名、email／個人連結或圖示）整段替換
 - Go Coverage 徽章不再寫死 `master`：`/tree/master` 與 `/codecov/c/github/{owner}/{repo}/master` → `{coverage_branch}`（CI 上傳 coverage 的 branch）
