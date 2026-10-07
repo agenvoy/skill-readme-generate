@@ -157,7 +157,7 @@ python3 {skill_dir}/scripts/setup_config.py
 | `{author_email}` | `~/.skill-readme-generate.json` 的 `author_email` | `dev@example.com` |
 | `{author_url}` | `~/.skill-readme-generate.json` 的 `author_url` | `https://linkedin.com/in/johndoe` |
 | `{date}` | 生成當日 `date +%Y-%m-%d`（Author 區段 contrib.rocks 的 `cache_bust`） | `2026-09-16` |
-| `{coverage_branch}` | `.github/workflows/*` 中上傳 coverage 的 workflow 的 `on.push.branches`；無 CI 時用 `git symbolic-ref --short refs/remotes/origin/HEAD` 的 branch | `develop` |
+| `{updated}` | 各輸出檔的最後更新日期，見「最後更新日期」 | `2026-10-06` |
 | `{repo}` | `REPO_PATH` 覆蓋或資料夾名稱或 `git remote get-url origin` | `go-scheduler` |
 | `{package}` | `package.json` name、`go.mod` module、`pyproject.toml` name | `@aspect/utils` |
 | `{year}` | 現有 README 年份或 `git log --reverse --format=%ai \| head -1` 或當前年份 | `2024` |
@@ -267,6 +267,19 @@ sed -n 's/^module //p' go.mod
 ---
 
 ## 強制性區段（完全複製）
+
+### 最後更新日期（六個輸出檔皆適用）
+
+每個輸出檔開頭標示該檔的最後更新日期 `{updated}`：
+
+| 檔案 | 位置 | EN | ZH |
+|---|---|---|---|
+| `README.md`／`doc/README.zh.md` | 檔案第一行（順序 0 之前），後接空行 | `Last updated: {updated}` | `最後更新：{updated}` |
+| `doc/doc*.md`／`doc/architecture*.md` | `# 標題` 下一行，後接空行（h1 維持第一行） | 同上 | 同上 |
+
+`{updated}` 取值：除日期行外的內容與既有檔相同 → 沿用既有日期並跳過寫入；內容有變或為新檔 → 生成當日 `{date}`。EN／ZH 各自判斷。
+
+**為何：** 日期代表內容最後變動日，重生成沒有實質改動時換日期只會產生無意義的 diff，也讓讀者誤判內容新鮮度。文件站首頁鏡像 README 時會移除這一行，改由 `build.js` 依內容雜湊產生日期（與 sitemap `lastmod` 同值）。
 
 ### 順序 0：LLM 生成通知 + 分隔線
 
@@ -558,17 +571,18 @@ Just [open an issue](https://github.com/{owner}/{repo}/issues/new) to share an i
 
 **先判斷專案定位：`{owner}/{repo}` 是否存在可被外部 `import` 的非 `main` package（即根目錄或子目錄有 `package xxx`，`xxx != main`）。**
 
-| 定位 | 判準 | Go Reference | Coverage |
-|---|---|---|---|
-| Library / Package | 存在可被 import 的非 `main` package | 包含 | 包含 |
-| Application | 僅有 `main` package（`cmd/`、單一可執行檔） | **省略**（pkg.go.dev 頁面對不可 import 的 `main` package 無實用性） | **省略**（無外部使用者需要驗證覆蓋率） |
+| 定位 | 判準 | Go Reference |
+|---|---|---|
+| Library / Package | 存在可被 import 的非 `main` package | 包含 |
+| Application | 僅有 `main` package（`cmd/`、單一可執行檔） | **省略**（pkg.go.dev 頁面對不可 import 的 `main` package 無實用性） |
+
+**不放 Coverage 徽章**（任何語言、任何定位皆同）。
 
 **Library / Package：**
 ```html
 <a href="https://pkg.go.dev/github.com/{owner}/{repo}"><img src="https://img.shields.io/badge/GO-REFERENCE-blue?include_prereleases&style=for-the-badge" alt="Go Reference"></a>
 <a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
-<a href="https://app.codecov.io/github/{owner}/{repo}/tree/{coverage_branch}"><img src="https://img.shields.io/codecov/c/github/{owner}/{repo}/{coverage_branch}?include_prereleases&style=for-the-badge" alt="Coverage"></a>
 ```
 
 **Application：**
@@ -1124,6 +1138,7 @@ For licensing inquiries, contact: {author_email}
 ### README（README.md + README.zh.md）
 - [ ] `doc/README.zh.md` 已建立並儲存
 - [ ] `README.md` 已建立並儲存
+- [ ] 六個輸出檔開頭皆有最後更新日期行；內容未變的檔案日期未變動
 - [ ] **順序 0**：LLM 生成通知存在，後接 `***` 分隔線
 - [ ] **順序 1**：置中封面圖片（如有 logo；私有模式跳過）
 - [ ] **順序 2**：置中標語 + 置中 HTML 徽章（`style=for-the-badge`）+ `***`；私有模式**完全跳過**（非僅省略徽章）

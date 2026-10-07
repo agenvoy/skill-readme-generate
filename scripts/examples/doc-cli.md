@@ -1,5 +1,7 @@
 # {repo} - 技術文件
 
+最後更新：{updated}
+
 > 返回 [README](./README.zh.md)
 
 ## 前置需求

@@ -1,3 +1,5 @@
+最後更新：{updated}
+
 > [!NOTE]
 > 此 README 由 [SKILL](https://github.com/agenvoy/skill-readme-generate) 生成，英文版請參閱 [這裡](../README.md)。
 
@@ -17,7 +19,6 @@
 <a href="https://pkg.go.dev/github.com/{owner}/{repo}"><img src="https://img.shields.io/badge/GO-REFERENCE-blue?include_prereleases&style=for-the-badge" alt="Go Reference"></a>
 <a href="https://github.com/{owner}/{repo}/releases"><img src="https://img.shields.io/github/v/tag/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/{owner}/{repo}?include_prereleases&style=for-the-badge" alt="License"></a>
-<a href="https://app.codecov.io/github/{owner}/{repo}/tree/{coverage_branch}"><img src="https://img.shields.io/codecov/c/github/{owner}/{repo}/{coverage_branch}?include_prereleases&style=for-the-badge" alt="Coverage"></a>
 </p>
 
 ***

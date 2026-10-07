@@ -6,10 +6,11 @@
 
 ## 破壞性變更
 
+- Coverage 徽章移除：刪除徽章列中 `alt="Coverage"`（`app.codecov.io`／`img.shields.io/codecov`）那一行
+- 輸出檔開頭新增最後更新日期：`README.md`／`doc/README.zh.md` 第一行加 `Last updated: {updated}`／`最後更新：{updated}`；`doc/doc*.md`、`doc/architecture*.md` 於 `# 標題` 下一行加同格式日期
 - 順序 3 簡短描述不再自行生成：專案 `.doc/seo-optimize/config.json`（或 `wiki-worker/.doc/seo-optimize/config.json`）有 `one_liner` → README.md／中文 README 的順序 3 blockquote 改為逐字 `one_liner.en`／`one_liner.zh`；無則依順序 3 狀態表處理
 - `usage` 模式移除：以 `usage` 產出的 README（無功能特點、主體為前置需求／安裝／使用方式／參考）→ 依現行區段順序重寫，並補齊 `doc/doc*.md`、`doc/architecture*.md`、LICENSE
 - Author 區段改為 `Just [open an issue](https://github.com/{owner}/{repo}/issues/new) to share an idea.` ＋ contrib.rocks 貢獻者圖（`cache_bust={date}`）；舊格式（`github.com/{owner}.png` 或 `avatars.githubusercontent.com` 頭像、`<h4>` 姓名、email／個人連結或圖示）整段替換
-- Go Coverage 徽章不再寫死 `master`：`/tree/master` 與 `/codecov/c/github/{owner}/{repo}/master` → `{coverage_branch}`（CI 上傳 coverage 的 branch）
 - 通用徽章連結互換錯誤：Version 徽章 `href="LICENSE"` → `https://github.com/{owner}/{repo}/releases`；License 徽章 `href=".../releases"` → `LICENSE`
 - `doc/README.zh.md` 功能特點 blockquote 的 `[完整文件](./doc/README.zh.md)` → `[完整文件](./doc.zh.md)`（舊連結指向自己）
 - LLM 生成通知連結 `github.com/pardnchiu/skill-readme-generate` → `github.com/agenvoy/skill-readme-generate`
